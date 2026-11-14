@@ -48,6 +48,15 @@ function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.sfx;
     case 'shift': noise(o, .06, .05, 'lowpass', 500); break;
     case 'lap': tone(o, 'sine', 880, 0, .12, .2); tone(o, 'sine', 1320, 0, .3, .2, .12); break;
     case 'whoosh': noise(o, .45, .1 * x, 'bandpass', 500, 0, 1500, 1.5); break;
+    case 'coin': tone(o, 'square', 1318 * x, 0, .05, .06); tone(o, 'square', 1760 * x, 0, .14, .06, .05); break;
+    case 'buy': noise(o, .06, .15, 'highpass', 4000); [1047, 1319, 1568, 2093].forEach((f, i) => tone(o, 'triangle', f, 0, .28, .13, i * .06)); tone(o, 'sine', 120, 60, .2, .3); break;
+    case 'crack': noise(o, .4, .45, 'highpass', 2500, 0, 7000); for (let i = 0; i < 7; i++) tone(o, 'sine', 2600 + Math.random() * 3600, 0, .07, .06, .03 + i * .035); tone(o, 'sine', 150, 50, .16, .45); break;
+    case 'pop': noise(o, .14, .4, 'bandpass', 1300, 0, 300, 1); tone(o, 'sine', 320, 80, .12, .3); for (let i = 0; i < 5; i++) tone(o, 'sine', 1800 + i * 400, 0, .05, .03, .08 + i * .03); break;
+    case 'firework': tone(o, 'sine', 95, 35, .45, .32); noise(o, 1, .1, 'highpass', 3000, .08, 8000); break;
+    case 'squeak': tone(o, 'sine', 900, 1600, .1, .16); tone(o, 'sine', 1500, 700, .14, .12, .1); break;
+    case 'sad': [392, 370, 349].forEach((f, i) => tone(o, 'sawtooth', f, 0, .3, .07, i * .34)); tone(o, 'sawtooth', 330, 300, 1.1, .07, 1.02); break;
+    case 'jingle': [659, 784, 988, 880, 784, 988, 1319].forEach((f, i) => { tone(o, 'triangle', f, 0, .13, .13, i * .11); tone(o, 'square', f / 2, 0, .13, .03, i * .11); }); break;
+    case 'nope': tone(o, 'square', 220, 180, .16, .08); tone(o, 'square', 180, 150, .2, .08, .13); break;
     case 'fanfare': [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => { tone(o, 'triangle', f, 0, i === 6 ? .9 : .16, .16, i * .13); tone(o, 'square', f / 2, 0, i === 6 ? .9 : .16, .04, i * .13); }); break;
   } }
 // the radio: sixteen steps a bar, four bars round. FMaj7, Em7, Dm7, G7, the way a summer afternoon sounds

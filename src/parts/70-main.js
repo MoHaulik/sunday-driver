@@ -9,7 +9,8 @@ function loop() {
     if (G.phase === 'poster') { const a = Math.sin(T * .13) * .09; camera.position.set(.98 + a, .13, .6).applyMatrix4(rig.matrixWorld); camera.lookAt(rig.localToWorld(_v.set(.12, -.17, -.9))); }
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
-  updHands(dt); flow(dt); updWipers(dt); setWorld(dt); weather(dt); parts.update(dt); updRain(dt, P.vf); screens(); updAudio(dt);
+  const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); screens(); updAudio(dt);
   renderer.render(scene, camera);
 }
 
@@ -30,7 +31,7 @@ if (SIM) { addEventListener('mousemove', e => mouse.set(e.clientX / innerWidth *
 function go(to) { // test hook: jump straight to a moment
   if (G.phase === 'poster') begin(false); G.clipZ = 99; G.engine = 1; openGlass(true); RADIO.on = true; if (to === 'ready') { openGlass(false); return setPhase('ready'); } if (to === 'crank') { openGlass(false); return setPhase('crank'); }
   if (to === 'count') return setPhase('count'); setPhase('race'); IN.auto = false; G.t = 3; if (to === 'rain') { P.prog += TL * 1.2; RIV.forEach(r => r.prog += TL * 1.2); } if (to === 'dusk') { P.prog += TL * 2.1; RIV.forEach(r => r.prog += TL * 2.1); } }
-window.__SD = { G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, rig, camera, scene, renderer, THREE, A, TL };
+window.__SD = { SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, rig, camera, scene, renderer, THREE, A, TL };
 
 // ═══════════════════════════ BOOT ═══════════════════════════
 (async () => {
