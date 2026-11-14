@@ -33,7 +33,7 @@ function updHands(dt) {
   wheelS.rotation.z = WH.rot; hbG.rotation.x = .12 + HB.pull * .62; HB.p.set(0, 0, -.185).applyAxisAngle(XA, hbG.rotation.x).add(hbG.position);
   IN.hands = n; IN.pressT = press ? (IN.pressT || 0) + dt : 0; const pr = SIM ? press : IN.pressT > .08; IN.press = pr && !IN.pressHeld; IN.pressHeld = pr;
   if (!IN.auto) { IN.steer = clamp(-WH.rot / WC.full, -1, 1); IN.thr = n ? 1 : 0; IN.brake = n ? 0 : .38; IN.hb = HB.pull > .3 ? HB.pull : 0; }
-  if (tune && T > RADIO.cool) { RADIO.cool = T + .9; RADIO.st = (RADIO.st + 1) % STATIONS.length; sfx('click'); say('♪ ' + STATIONS[RADIO.st].name, 1.6); } // touch the middle screen: next station
+  if (tune && T > RADIO.cool && RADIO.on) { RADIO.cool = T + .9; RADIO.st = (RADIO.st + 1) % STATIONS.length; sfx('click'); say('♪ ' + STATIONS[RADIO.st].name, 1.6); } // touch the middle screen: next station
   if (IN.honk && T > WH.horn) { WH.horn = T + (has('horn') ? 1 : .7); sfx(has('horn') ? 'jingle' : 'horn'); for (const r of RIV) { const d = r.prog - P.prog; if (d > 0 && d < 34) r.honk = 2.2; } }
 }
 
@@ -92,6 +92,7 @@ function grid() { // the start: six cars in two files ahead of you, and you at t
 // ═══════════════════════════ THE RACE: phases, laps, weather, and the three screens ═══════════════════════════
 const G = { slow: 0, earn: { laps: 0 }, shown: 0, phase: 'poster', t: 0, pt: 0, time: 0, lights: 0, go: 0, fin: [], place: 0, pos: 7, lap: 1, msg: '', msgT: 0, engine: 0, reveal: false, clipZ: 99, hudT: 0, miniT: 0, tipHB: false, again: false, pause: 0, pauseT: 0 };
 function setPhase(p) { G.phase = p; G.t = G.pt = 0; }
+function startCount() { setPhase('count'); G.lights = 0; G.go = 5.4 + rand(.6, 1.5); }
 const hit = a => G.pt < a && G.t >= a, say = (m, d = 2) => { G.msg = m; G.msgT = T + d; }, fmt = t => `${t / 60 | 0}:${(t % 60).toFixed(1).padStart(4, '0')}`;
 function openGlass(now) { UG.uSw.value.set(now ? WP.a1 : WP.a0 - .06, now ? 1 : 0, 0); UG.uRoll.value = now ? 1 : 0; UG.uDust.value = now ? 0 : 1; UG.uSplash.value = 0; G.reveal = !now; }
 function updWipers(dt) { const w = WS, auto = WX.rain > .1 && G.phase !== 'ready' && G.phase !== 'boot';
@@ -111,12 +112,13 @@ function flow(dt) {
   else if (ph === 'place') { if (G.t > .9) { camera.getWorldPosition(_v); camera.getWorldDirection(_v2).setY(0); if (_v2.lengthSq() > .01) { seat(_v, _v2.normalize()); setPhase('boot'); sfx('arrive'); } } }
   else if (ph === 'boot') { G.clipZ = lerp(-2.4, .8, s01(G.t / 1.8)); UG.uDust.value = s01((G.t - .5) / 1.2); if (G.t > 2.2) { G.clipZ = 99; setPhase('ready'); } }
   else if (ph === 'ready') { if (renderer.xr.isPresenting && G.t > 1) { camera.getWorldPosition(_v); if (rig.worldToLocal(_v4.copy(_v)).length() > .45) { camera.getWorldDirection(_v2).setY(0); seat(_v, _v2.normalize()); } } // moved? the car follows you until you start it
-    if (IN.press) { setPhase('crank'); sfx('click'); sfx('starter'); startCap.position.z = -.004; } }
+    if (IN.press) KEYS.auto = KEYS.auto || T; } // the key does it now; the button (or a controller trigger) turns it for you
   else if (ph === 'crank') { // the cinematic: starter, needles, engine, and then the wipers
     if (G.t < 1.9) { const k = Math.sin(clamp(G.t / 1.8, 0, 1) * Math.PI); setNeedle(needleR, k); setNeedle(needleS, k); } startCap.position.z *= .9;
-    if (hit(1.1)) { G.engine = 1; sfx('catch'); P.shake = .5; } if (hit(1.9)) { WS.want = 1; G.reveal = true; } if (hit(2.3)) { RADIO.on = true; }
+    if (hit(1.1)) { G.engine = 1; sfx('catch'); P.shake = .5; ignitionFx(); } if (hit(1.9)) { WS.want = 1; G.reveal = true; }
     if (hit(3.2)) { WS.want = 1; sfx('washer'); } if (G.t > 3.25) UG.uSw.value.y = s01((G.t - 3.25) / 1.1); if (G.t > 3.4) UG.uDust.value = 1 - s01((G.t - 3.4) / 1.4);
-    if (hit(4.3)) sfx('whirr'); if (G.t > 4.3) UG.uRoll.value = s01((G.t - 4.3) / 1.15); if (G.t > 5.7) { openGlass(true); setPhase('count'); G.lights = 0; G.go = 5.4 + rand(.6, 1.5); } }
+    if (hit(4.3)) sfx('whirr'); if (G.t > 4.3) UG.uRoll.value = s01((G.t - 4.3) / 1.15); if (G.t > 5.7) { openGlass(true); if (RADIO.on) startCount(); else { setPhase('cd'); cdOpen(); } } }
+  else if (ph === 'cd') { if (CDS.state === 'done' && CDS.t > 1.6) startCount(); }
   else if (ph === 'count') { const n = clamp(Math.floor((G.t - .6) / 1) + 1, 0, 5); if (G.t > .6 && n > G.lights && G.t < G.go) { G.lights = n; sfx('beep', 440); }
     if (G.t >= G.go) { G.lights = -1; sfx('beep', 880, .7); say('GO!', 1.5); setPhase('race'); G.time = 0; IN.auto = false; } }
   else if (ph === 'race') { G.time += dt; P.lapT += dt; drive(dt); updRivals(dt, true); if (G.t > 2) G.lights = 0;
@@ -160,11 +162,12 @@ function setWorld(dt) {
 const MAPP = (() => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < N; i++) { x0 = Math.min(x0, SX[i]); x1 = Math.max(x1, SX[i]); z0 = Math.min(z0, SZ[i]); z1 = Math.max(z1, SZ[i]); } const k = Math.min(232 / (x1 - x0), 232 / (z1 - z0)); return (x, z) => [144 + (x - (x0 + x1) / 2) * k, 144 + (z - (z0 + z1) / 2) * k]; })();
 function screens() { const ph0 = G.phase;
   setNeedle(needleR, G.engine ? P.rpm * .82 + (ph0 === 'race' ? 0 : Math.sin(T * 20) * .004) : 0); setNeedle(needleS, P.vf * 4.3 / 240); if (ph0 === 'crank' && G.t < 1.9) { const k = Math.sin(clamp(G.t / 1.8, 0, 1) * Math.PI); setNeedle(needleR, k); setNeedle(needleS, k); }
-  startCap.cap.material.color.setScalar(1).multiply(_c.set('#ff3b2f')).multiplyScalar(ph0 === 'ready' || G.again || G.pause === 1 ? (Math.sin(T * 9) > 0 ? 1.6 : .2) : .5); startRing.material.opacity = ph0 === 'ready' || G.again || G.pause === 1 ? .5 + .5 * Math.sin(T * 9) : 0; startRing.scale.setScalar(1 + .25 * (T * 1.5 % 1));
+  startCap.cap.material.color.setScalar(1).multiply(_c.set('#ff3b2f')).multiplyScalar(G.again || G.pause === 1 ? (Math.sin(T * 9) > 0 ? 1.6 : .2) : .5); startRing.material.opacity = G.again || G.pause === 1 ? .5 + .5 * Math.sin(T * 9) : 0; startRing.scale.setScalar(1 + .25 * (T * 1.5 % 1));
   if (T < G.hudT) { if (T >= G.miniT) mini(); return; } G.hudT = T + .09; const c = HUDC.ctx, ph = G.phase, kmh = Math.round(P.vf * 4.3), msg = T < G.msgT ? G.msg : '', F = (w, s, i) => `${i ? 'italic ' : ''}${w} ${s}px "Chakra Petch",sans-serif`;
   c.fillStyle = '#04060a'; c.fillRect(0, 0, 512, 256); c.fillStyle = '#000'; c.fillRect(0, 256, 512, 256); c.textBaseline = 'middle';
   if (G.pause) { c.textAlign = 'center'; c.fillStyle = '#f3f1ea'; c.font = F(700, 70, 1); c.fillText('PAUSED', 256, 104); c.fillStyle = `rgba(255,59,47,${.55 + .45 * Math.sin(T * 5)})`; c.font = F(500, 28); c.fillText('press START to drive on', 256, 178); }
-  else if (ph === 'ready' || (ph === 'boot')) { c.textAlign = 'center'; c.fillStyle = `rgba(255,59,47,${.55 + .45 * Math.sin(T * 5)})`; c.font = F(700, 62, 1); c.fillText('PRESS START', 256, 108); c.fillStyle = '#8b909a'; c.font = F(500, 26); c.fillText('the red button, left of the wheel', 256, 178); }
+  else if (ph === 'ready' || (ph === 'boot')) { c.textAlign = 'center'; c.fillStyle = `rgba(255,59,47,${.55 + .45 * Math.sin(T * 5)})`; c.font = F(700, 62, 1); c.fillText(KEYS.state === 'in' ? 'TURN THE KEY' : 'TAKE THE KEY', 256, 108); c.fillStyle = '#c9b8ff'; c.font = F(500, 26); c.fillText(KEYS.state === 'in' ? 'pinch it and twist your wrist' : 'pinch it, put it in the ignition', 256, 178); }
+  else if (ph === 'cd') { c.textAlign = 'center'; c.fillStyle = `rgba(95,243,255,${.6 + .4 * Math.sin(T * 5)})`; c.font = F(700, 58, 1); c.fillText('PICK A CD', 256, 108); c.fillStyle = '#c9b8ff'; c.font = F(500, 26); c.fillText('swipe, grab, feed the player', 256, 178); }
   else if (ph === 'crank' && G.t < 2.4) { c.textAlign = 'center'; c.fillStyle = '#f3f1ea'; c.font = 'italic 800 76px Unbounded,sans-serif'; c.fillText('NXT', 256, 112); c.fillStyle = '#ff3b2f'; c.fillRect(120, 176, 272 * clamp(G.t / 2.3, 0, 1), 8); }
   else if (ph === 'finish') { c.textAlign = 'center'; c.fillStyle = G.place === 1 ? '#ffd23f' : '#f3f1ea'; c.font = F(700, 110, 1); c.fillText(`P${G.place}`, 256, 84); c.font = F(700, 34, 1); c.fillStyle = '#f3f1ea'; c.fillText(G.place === 1 ? 'WINNER' : G.place <= 3 ? 'PODIUM' : 'FINISHED', 256, 160);
     c.font = F(500, 24); c.fillStyle = G.again && Math.sin(T * 5) > -.3 ? '#ff3b2f' : '#8b909a'; c.fillText(G.again ? 'START = RACE AGAIN' : `${fmt(G.time)}  ·  BEST LAP ${fmt(P.best)}`, 256, 216); }
@@ -179,7 +182,7 @@ function screens() { const ph0 = G.phase;
   HUDC.tex.needsUpdate = true; hud.material.opacity += (((ph === 'race' || ph === 'count' || ph === 'finish') && !G.pause ? .95 : 0) - hud.material.opacity) * .2;
   if (T >= G.miniT) mini();
 }
-function mini() { G.miniT = T + .22; const m = MINI.ctx, all = standings(); if (!miniPrize(m, all)) { m.fillStyle = '#160e36'; m.fillRect(0, 0, 512, 288); m.strokeStyle = '#ff4fa3'; m.lineWidth = 9; m.lineJoin = 'round'; m.beginPath(); for (let i = 0; i <= N; i += 4) { const [x, y] = MAPP(SX[i % N], SZ[i % N]); i ? m.lineTo(x, y) : m.moveTo(x, y); } m.closePath(); m.stroke(); m.strokeStyle = '#ffd6ea'; m.lineWidth = 2; m.stroke();
+function mini() { G.miniT = T + .22; const m = MINI.ctx, all = standings(); if (!miniBoot(m) && !miniPrize(m, all)) { m.fillStyle = '#160e36'; m.fillRect(0, 0, 512, 288); m.strokeStyle = '#ff4fa3'; m.lineWidth = 9; m.lineJoin = 'round'; m.beginPath(); for (let i = 0; i <= N; i += 4) { const [x, y] = MAPP(SX[i % N], SZ[i % N]); i ? m.lineTo(x, y) : m.moveTo(x, y); } m.closePath(); m.stroke(); m.strokeStyle = '#ffd6ea'; m.lineWidth = 2; m.stroke();
   for (const r of [...RIV, P]) { const o = r === P ? P : r.o, [x, y] = MAPP(o.x, o.z); m.fillStyle = r.hex; m.beginPath(); m.arc(x, y, r === P ? 9 : 6, 0, 7); m.fill(); if (r === P) { m.strokeStyle = '#fff'; m.lineWidth = 3; m.stroke(); } }
   m.textBaseline = 'middle'; all.forEach((r, k) => { const y = 30 + k * 30; if (r === P) { m.fillStyle = 'rgba(255,255,255,.1)'; m.fillRect(296, y - 14, 208, 28); } m.fillStyle = '#8b909a'; m.font = '500 20px "Chakra Petch",sans-serif'; m.textAlign = 'left'; m.fillText(k + 1, 304, y); m.fillStyle = r.hex; m.fillRect(328, y - 9, 8, 18); m.fillStyle = r === P ? '#fff' : '#c9ccd3'; m.font = `${r === P ? 700 : 500} 21px "Chakra Petch",sans-serif`; m.fillText(r.name, 346, y);
     if (k && racingNow()) { m.textAlign = 'right'; m.fillStyle = '#6f7480'; m.font = '500 17px "Chakra Petch",sans-serif'; m.fillText(r.done ? 'FIN' : `+${Math.max(0, (all[0].prog - r.prog) / 30).toFixed(1)}`, 500, y); } });

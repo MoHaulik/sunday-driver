@@ -10,16 +10,16 @@ function loop() {
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
   const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
-  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); screens(); updAudio(dt);
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); startFx(dt); screens(); updAudio(dt);
   renderer.render(scene, camera);
 }
 
 // ═══════════════════════════ SESSION ═══════════════════════════
 const HOME = [new V(0, 1.2, 0), new V(0, 0, -1)];
-function begin(xr) { camera.clearViewOffset(); $('ov').classList.add('hide'); G.fin.length = 0; G.place = 0; G.lap = 1; G.engine = 0; G.lights = 0; G.tipHB = G.usedHB = false; G.again = false; RADIO.on = false; IN.everHeld = false; WX.t = [1, 0, 0]; weather(0, true);
+function begin(xr) { camera.clearViewOffset(); $('ov').classList.add('hide'); G.fin.length = 0; G.place = 0; G.lap = 1; G.engine = 0; G.lights = 0; G.tipHB = G.usedHB = false; G.again = false; startReset(); IN.everHeld = false; WX.t = [1, 0, 0]; weather(0, true);
   grid(); openGlass(false); UG.uDust.value = 0; WS.a = WP.a0; WS.on = false; WS.want = 0; G.clipZ = -2.4; hud.material.opacity = 0;
   if (xr) setPhase('place'); else { camera.fov = 74; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); seat(...HOME); setPhase('boot'); sfx('arrive'); } }
-function end() { seat(...HOME); G.clipZ = 99; G.engine = 1; G.lights = 0; RADIO.on = false; grid(); openGlass(true); WS.want = 0; setPhase('poster'); $('ov').classList.remove('hide'); camera.fov = 36; camera.aspect = innerWidth / innerHeight; framePoster(); camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); }
+function end() { seat(...HOME); G.clipZ = 99; G.engine = 1; G.lights = 0; startReset(); setPower(1); KEYS.state = 'in'; grid(); openGlass(true); WS.want = 0; setPhase('poster'); $('ov').classList.remove('hide'); camera.fov = 36; camera.aspect = innerWidth / innerHeight; framePoster(); camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); }
 $('go').onclick = async () => {
   audioInit(); if (SIM) return begin(false);
   if (!navigator.xr) { $('msg').textContent = 'Open this page in the browser of your Meta Quest'; return; }
@@ -31,7 +31,7 @@ if (SIM) { addEventListener('mousemove', e => mouse.set(e.clientX / innerWidth *
 function go(to) { // test hook: jump straight to a moment
   if (G.phase === 'poster') begin(false); G.clipZ = 99; G.engine = 1; openGlass(true); RADIO.on = true; if (to === 'ready') { openGlass(false); return setPhase('ready'); } if (to === 'crank') { openGlass(false); return setPhase('crank'); }
   if (to === 'count') return setPhase('count'); setPhase('race'); IN.auto = false; G.t = 3; if (to === 'rain') { P.prog += TL * 1.2; RIV.forEach(r => r.prog += TL * 1.2); } if (to === 'dusk') { P.prog += TL * 2.1; RIV.forEach(r => r.prog += TL * 2.1); } }
-window.__SD = { SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, rig, camera, scene, renderer, THREE, A, TL };
+window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, rig, camera, scene, renderer, THREE, A, TL };
 
 // ═══════════════════════════ BOOT ═══════════════════════════
 (async () => {

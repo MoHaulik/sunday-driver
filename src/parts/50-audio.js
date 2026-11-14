@@ -57,10 +57,17 @@ function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.sfx;
     case 'sad': [392, 370, 349].forEach((f, i) => tone(o, 'sawtooth', f, 0, .3, .07, i * .34)); tone(o, 'sawtooth', 330, 300, 1.1, .07, 1.02); break;
     case 'jingle': [659, 784, 988, 880, 784, 988, 1319].forEach((f, i) => { tone(o, 'triangle', f, 0, .13, .13, i * .11); tone(o, 'square', f / 2, 0, .13, .03, i * .11); }); break;
     case 'nope': tone(o, 'square', 220, 180, .16, .08); tone(o, 'square', 180, 150, .2, .08, .13); break;
+    case 'keyin': noise(o, .05, .3, 'bandpass', 3000, 0, 2000, 3); tone(o, 'square', 2400, 1800, .03, .05); noise(o, .04, .25, 'bandpass', 2200, .07, 1500, 3); break;
+    case 'detent': noise(o, .03, .35, 'bandpass', 1800 * x, 0, 1200, 4); tone(o, 'square', 900 * x, 600, .02, .05); break;
+    case 'tick': noise(o, .015, .18, 'highpass', 5000); tone(o, 'sine', 2200 * x, 0, .02, .04); break;
+    case 'backfire': noise(o, .18, .9, 'lowpass', 700, 0, 120); tone(o, 'sine', 70, 30, .2, .5); noise(o, .1, .5, 'lowpass', 500, .26, 100); tone(o, 'sine', 60, 30, .14, .35, .26); break;
+    case 'eat': tone(o, 'sawtooth', 120, 220, .55, .05, 0, .02); noise(o, .55, .06, 'bandpass', 900, 0, 1600, 3); noise(o, .05, .3, 'bandpass', 2500, .55, 1500, 3); tone(o, 'sine', 300, 2400, 1.1, .035, .65); break;
+    case 'beep2': tone(o, 'square', 1760, 0, .05, .04); tone(o, 'square', 2349, 0, .07, .04, .07); break;
     case 'fanfare': [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => { tone(o, 'triangle', f, 0, i === 6 ? .9 : .16, .16, i * .13); tone(o, 'square', f / 2, 0, i === 6 ? .9 : .16, .04, i * .13); }); break;
   } }
 // the radio: sixteen steps a bar, four bars round. FMaj7, Em7, Dm7, G7, the way a summer afternoon sounds
-const STATIONS = [{ name: 'NXT FM · Sunday Drive', bpm: 104, ch: [[5, 9, 12, 16], [4, 7, 11, 14], [2, 5, 9, 12], [7, 11, 14, 17]] }, { name: 'Radio Kyst · Night Shift', bpm: 86, ch: [[9, 12, 16, 19], [5, 9, 12, 16], [2, 5, 9, 12], [4, 8, 11, 14]] }, { name: 'Radio off', bpm: 100, ch: null }], hz = n => 130.81 * 2 ** (n / 12);
+const STATIONS = [{ name: 'Sunday Drive mix', bpm: 104, mel: 1, ch: [[5, 9, 12, 16], [4, 7, 11, 14], [2, 5, 9, 12], [7, 11, 14, 17]] }, { name: 'Night Shift', bpm: 86, ch: [[9, 12, 16, 19], [5, 9, 12, 16], [2, 5, 9, 12], [4, 8, 11, 14]] },
+  { name: 'SUGAR RUSH!!', bpm: 128, arp: 1, ch: [[7, 11, 14, 17], [4, 7, 11, 14], [0, 4, 7, 11], [2, 5, 9, 12]] }, { name: "Beach Tape '03", bpm: 92, ch: [[9, 12, 16, 19], [5, 9, 12, 16], [0, 4, 7, 11], [7, 11, 14, 17]] }, { name: 'Turbo Hearts', bpm: 140, arp: 1, ch: [[2, 5, 9, 12], [10, 14, 17, 21], [0, 4, 7, 10], [5, 9, 12, 16]] }, { name: 'Radio off', bpm: 100, ch: null }], hz = n => 130.81 * 2 ** (n / 12);
 function radio() { const ST = STATIONS[RADIO.st]; if (!A.ctx || !RADIO.on || !ST.ch) return; const c = A.ctx, o = A.radIn, st = 60 / ST.bpm / 4; if (RADIO.next < c.currentTime - .3) RADIO.next = c.currentTime + .05;
   const nt = (type, f, t, d, g, a = .005) => { const os = c.createOscillator(), gn = c.createGain(); os.type = type; os.frequency.value = f; gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(g, t + a); gn.gain.exponentialRampToValueAtTime(.0001, t + d); os.connect(gn).connect(o); os.start(t); os.stop(t + d + .02); };
   const ns = (t, d, g, f, type = 'highpass') => { const s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain(); s.buffer = A.nb; fl.type = type; fl.frequency.value = f; gn.gain.setValueAtTime(g, t); gn.gain.exponentialRampToValueAtTime(.0001, t + d); s.connect(fl).connect(gn).connect(o); s.start(t, Math.random()); s.stop(t + d + .02); };
@@ -70,7 +77,7 @@ function radio() { const ST = STATIONS[RADIO.st]; if (!A.ctx || !RADIO.on || !ST
     if ([0, 3, 6, 8, 11, 14].includes(s)) nt('triangle', hz(ch[0] - 12 + (s === 6 || s === 14 ? 12 : 0)), T0, st * 1.7, .34, .008);                                                                                                           // bass
     if (s === 0 || s === 6 || s === 10) for (const n of ch) { nt('sine', hz(n + 12), T0, s ? st * 1.6 : st * 5, .075); nt('triangle', hz(n + 12) * 2.005, T0, st * 1.2, .018); }                                                                 // electric piano
     const mel = [[16, 0, 14, 0, 12, 0, 9, 12, 0, 0, 14, 0, 16, 0, 19, 0], [14, 0, 0, 11, 0, 14, 0, 0, 16, 0, 14, 0, 11, 0, 7, 0], [12, 0, 9, 0, 12, 0, 14, 16, 0, 0, 12, 0, 9, 0, 5, 0], [11, 0, 14, 0, 17, 0, 14, 0, 19, 0, 17, 0, 14, 11, 0, 0]][bar][s];
-    if (mel && !RADIO.st && (RADIO.step >> 6) % 2) nt('square', hz(mel + 12), T0, st * 1.5, .03, .01); RADIO.next += st; RADIO.step++; } }
+    if (mel && ST.mel && (RADIO.step >> 6) % 2) nt('square', hz(mel + 12), T0, st * 1.5, .03, .01); if (ST.arp && (RADIO.step >> 5) % 2) nt('square', hz(ch[s % 4] + 24), T0, st * .8, .022, .004); RADIO.next += st; RADIO.step++; } }
 function updateListener() { if (!A.ctx) return; const L = A.ctx.listener; camera.getWorldPosition(_v); camera.getWorldDirection(_v4); _v3.copy(YA).applyQuaternion(camera.getWorldQuaternion(_q));
   if (L.positionX) { L.positionX.value = _v.x; L.positionY.value = _v.y; L.positionZ.value = _v.z; L.forwardX.value = _v4.x; L.forwardY.value = _v4.y; L.forwardZ.value = _v4.z; L.upX.value = _v3.x; L.upY.value = _v3.y; L.upZ.value = _v3.z; } }
 const setPan = (p, v) => { p.positionX.value = v.x; p.positionY.value = v.y; p.positionZ.value = v.z; };
