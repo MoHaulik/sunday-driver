@@ -63,8 +63,8 @@ const u = v => ({ value: v }), col = h => new C(h);
 const UW = { uSun: u(new V(0, 1, 0)), uSunT: u(new V(0, 1, 0)), uSunC: u(col('#fff')), uShC: u(col('#fff')), uFogC: u(col('#fff')), uZen: u(col('#fff')), uHor: u(col('#fff')), uCl: u(col('#fff')), uCs: u(col('#fff')), uSeaA: u(col('#fff')), uSeaB: u(col('#fff')),
   uFog: u(.0016), uCov: u(.5), uSunI: u(1), uWet: u(0), uTime: u(0), uEye: u(new V()) };
 //           day        rain       golden hour
-const LOOK = { uSunC: ['#fff7ea', '#b3bcc6', '#ffb87e'], uShC: ['#8e9fdc', '#7f8a9c', '#80609e'], uZen: ['#2a7be8', '#5f6c78', '#3a4fa3'], uHor: ['#bfe8ff', '#a9b3ba', '#ffc79c'], uCl: ['#ffffff', '#c4cacf', '#ffdcbc'], uCs: ['#b4c9ee', '#8a939b', '#c9809a'],
-  uFogC: ['#cbeafc', '#a6b0b7', '#f5c3a4'], uSeaA: ['#2fb4dc', '#62767f', '#e09a82'], uSeaB: ['#1a5fc8', '#4a5a66', '#5a4da0'] }, LOOKN = { uFog: [.0016, .0048, .0021], uCov: [.5, .16, .46], uSunI: [1, 0, 1.25], uWet: [0, 1, .2] };
+const LOOK = { uSunC: ['#fffdf6', '#c6bcdc', '#ffb884'], uShC: ['#b891ea', '#8f84b8', '#a264cc'], uZen: ['#3fc4f7', '#7a6cab', '#7446d2'], uHor: ['#ffd3ec', '#cbbbe0', '#ff9cc6'], uCl: ['#ffffff', '#e0d6ee', '#ffe3c4'], uCs: ['#ffbfe2', '#a797c8', '#ff8cba'],
+  uFogC: ['#ffdcef', '#c6b6dc', '#ffaecb'], uSeaA: ['#45e3d6', '#8088bc', '#ff98ac'], uSeaB: ['#2f93f2', '#5c5ea0', '#7a4cc4'] }, LOOKN = { uFog: [.0016, .0048, .0021], uCov: [.5, .16, .46], uSunI: [1, 0, 1.25], uWet: [0, 1, .2] };
 for (const k in LOOK) LOOK[k] = LOOK[k].map(col);
 const SUND = [new V(.42, .78, .46).normalize(), new V(.42, .78, .46).normalize(), new V(-.82, .17, .5).normalize()];
 const WX = { w: [1, 0, 0], t: [1, 0, 0], rain: 0 };

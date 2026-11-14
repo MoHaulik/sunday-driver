@@ -38,7 +38,7 @@ function updHands(dt) {
 }
 
 // ═══════════════════════════ THE CAR: a point with a heading and a velocity. Grip pulls the velocity round to the heading; the handbrake lets go of it ═══════════════════════════
-const P = { name: 'YOU', hex: '#e6322c', x: 0, y: 0, z: 0, psi: 0, vx: 0, vz: 0, vf: 0, v: 0, yaw: 0, i: 0, s: 0, lat: 0, prog: 0, slip: 0, off: false, boost: 0, charge: 0, gear: 1, rpm: 0, ax: 0, ay: 0, shake: 0, draft: 0, stuck: 0, clean: 0, lapT: 0, best: 0, done: 0, hitT: 0, o: {} };
+const P = { name: 'YOU', hex: '#ff2d8a', x: 0, y: 0, z: 0, psi: 0, vx: 0, vz: 0, vf: 0, v: 0, yaw: 0, i: 0, s: 0, lat: 0, prog: 0, slip: 0, off: false, boost: 0, charge: 0, gear: 1, rpm: 0, ax: 0, ay: 0, shake: 0, draft: 0, stuck: 0, clean: 0, lapT: 0, best: 0, done: 0, hitT: 0, o: {} };
 function locate(o, wide) { let bi = o.i, bd = 1e12; const R = wide ? N >> 1 : 14; for (let k = -R; k <= R; k++) { const j = ix(o.i + k), dx = o.x - SX[j], dz = o.z - SZ[j], d = dx * dx + dz * dz; if (d < bd) { bd = d; bi = j; } }
   const dx = o.x - SX[bi], dz = o.z - SZ[bi], s0 = o.s; o.i = bi; o.lat = -dx * TZ[bi] + dz * TX[bi]; o.s = ((bi * DS + dx * TX[bi] + dz * TZ[bi]) % TL + TL) % TL; return wrapS(o.s - s0); }
 const GEARS = [0, 9, 17, 25, 33, 41, 70];

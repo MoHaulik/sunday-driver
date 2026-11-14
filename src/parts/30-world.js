@@ -15,11 +15,11 @@ const WHITE = col('#ffffff'), M4 = (x, y, z, ry = 0, s = 1, sy = s) => new THREE
 // ── the atlas: sixteen 512px tiles painted once. 0-7 two-storey fronts, 8-11 one-storey, 12-13 three-storey, 14 signs and machines, 15 the banner
 const ATL = ctex(2048, 2048, false), TILE = [], T2 = [0, 1, 2, 3, 4, 5, 6, 7], T1 = [8, 9, 10, 11], T3 = [12, 13];
 const tileUV = (i, x0 = 0, y0 = 0, x1 = 1, y1 = 1) => { const tx = i % 4, ty = i >> 2, e = 3 / 2048; return [(tx + x0) / 4 + e, 1 - (ty + y1) / 4 + e, (tx + x1) / 4 - e, 1 - (ty + y0) / 4 - e]; };
-{ const c = ATL.ctx, S = 512, ink = 'rgba(62,48,86,.6)', WALLS = ['#fff3df', '#ffd8cf', '#d6efe2', '#d5e5fb', '#fdefb4', '#f1e1d0', '#e7e2f6', '#ffffff'], AWN = ['#e8453b', '#2f9270', '#2c70d8', '#f2a21f', '#da5290', '#39a8ba'], WORDS = ['CAFE', 'BOOKS', 'RAMEN', 'BAKERY', 'FLOWERS', 'CYCLES', 'NXT', 'TEA', 'RECORDS', 'GARAGE', 'SODA', 'LAUNDRY', 'HOTEL', 'KIOSK'];
+{ const c = ATL.ctx, S = 512, ink = '#1d1233', WALLS = ['#ffb6dc', '#a9e7ff', '#c9f6a2', '#fff4a3', '#dabaff', '#ffd2ab', '#ffffff', '#ff9fc6'], AWN = ['#ff2d8a', '#19c3ff', '#6fcf1f', '#ffb400', '#a45cff', '#00cdb0'], WORDS = ['CAFE', 'BOOKS', 'RAMEN', 'BAKERY', 'FLOWERS', 'CYCLES', 'NXT', 'TEA', 'RECORDS', 'GARAGE', 'SODA', 'LAUNDRY', 'HOTEL', 'KIOSK'];
   const win = (x, y, w, h, o = {}) => { // a window the way they are painted: sky in the glass, one white glint, a frame and a sill
     c.fillStyle = '#fbfaf4'; c.fillRect(x - 5, y - 5, w + 10, h + 10); const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, o.dark ? '#3c5f9a' : '#5eaaea'); g.addColorStop(1, o.dark ? '#7fa6d6' : '#cdeeff'); c.fillStyle = g; c.fillRect(x, y, w, h);
     c.fillStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.moveTo(x + w * .12, y + h); c.lineTo(x + w * .46, y); c.lineTo(x + w * .64, y); c.lineTo(x + w * .3, y + h); c.fill();
-    c.strokeStyle = ink; c.lineWidth = 3; c.strokeRect(x - 5, y - 5, w + 10, h + 10); c.beginPath(); if (o.bars) { c.moveTo(x + w / 2, y); c.lineTo(x + w / 2, y + h); } if (o.bars > 1) { c.moveTo(x, y + h * .45); c.lineTo(x + w, y + h * .45); } c.stroke();
+    c.strokeStyle = ink; c.lineWidth = 6; c.strokeRect(x - 5, y - 5, w + 10, h + 10); c.beginPath(); if (o.bars) { c.moveTo(x + w / 2, y); c.lineTo(x + w / 2, y + h); } if (o.bars > 1) { c.moveTo(x, y + h * .45); c.lineTo(x + w, y + h * .45); } c.stroke();
     if (o.sill) { c.fillStyle = '#fbfaf4'; c.fillRect(x - 11, y + h + 5, w + 22, 8); c.strokeRect(x - 11, y + h + 5, w + 22, 8); }
     if (o.box) { c.fillStyle = '#9c6b47'; c.fillRect(x - 6, y + h - 4, w + 12, 16); c.strokeRect(x - 6, y + h - 4, w + 12, 16); for (let k = 0; k < 9; k++) { c.fillStyle = k % 3 ? '#4fae4a' : pick(['#ff6f91', '#ffd23f', '#ffffff']); c.beginPath(); c.arc(x + (k + .5) * w / 9, y + h - 7 + (k % 2) * 3, 9, 0, 7); c.fill(); } } };
   for (let i = 0; i < 14; i++) { const fl = i < 8 ? 2 : i < 12 ? 1 : 3, wall = WALLS[i % 8], aw = AWN[i % 6], shop = i < 12 && i % 4 !== 3, fh = S / fl, gy = S - fh; TILE[i] = { wall: col(wall).multiplyScalar(.97), awn: shop ? col(aw) : null };
@@ -31,13 +31,13 @@ const tileUV = (i, x0 = 0, y0 = 0, x1 = 1, y1 = 1) => { const tx = i % 4, ty = i
       if (i % 4 === 1) { c.strokeStyle = ink; c.lineWidth = 4; c.strokeRect(26, y + fh * .58, S - 52, fh * .24); for (let x = 40; x < S - 30; x += 22) { c.beginPath(); c.moveTo(x, y + fh * .58); c.lineTo(x, y + fh * .82); c.stroke(); } } // a balcony rail
       c.fillStyle = 'rgba(96,74,128,.22)'; c.fillRect(0, y + fh - 7, S, 7); }
     if (shop) { const word = WORDS[i % WORDS.length]; // ground floor: signboard, striped awning with a scalloped edge, a big pane and a door
-      c.fillStyle = '#fbfaf4'; c.fillRect(34, gy + fh * .05, S - 68, fh * .15); c.strokeStyle = ink; c.lineWidth = 3; c.strokeRect(34, gy + fh * .05, S - 68, fh * .15);
+      c.fillStyle = '#fbfaf4'; c.fillRect(34, gy + fh * .05, S - 68, fh * .15); c.strokeStyle = ink; c.lineWidth = 6; c.strokeRect(34, gy + fh * .05, S - 68, fh * .15);
       c.fillStyle = aw; c.font = `800 ${fh * .105}px Unbounded,system-ui,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(word, S / 2, gy + fh * .13);
       const ay = gy + fh * .24, ah = fh * .15; for (let x = 0; x < S; x += 40) { c.fillStyle = (x / 40) % 2 ? '#fbfaf4' : aw; c.fillRect(x, ay, 40, ah); c.beginPath(); c.arc(x + 20, ay + ah, 20, 0, Math.PI); c.fill(); } c.fillStyle = 'rgba(60,40,90,.28)'; c.fillRect(0, ay + ah + 18, S, 16);
       win(36, gy + fh * .5, 270, fh * .34, { bars: i % 2, dark: i % 5 === 0 }); c.fillStyle = i % 2 ? '#7a5234' : aw; c.fillRect(352, gy + fh * .5, 112, fh * .5); c.strokeRect(352, gy + fh * .5, 112, fh * .5); win(370, gy + fh * .55, 76, fh * .2, {}); c.fillStyle = '#ffd23f'; c.beginPath(); c.arc(366, gy + fh * .82, 5, 0, 7); c.fill(); }
-    else if (i % 8 === 3) { c.fillStyle = '#d9dde3'; c.fillRect(40, gy + fh * .3, 300, fh * .7); c.strokeStyle = ink; c.lineWidth = 3; c.strokeRect(40, gy + fh * .3, 300, fh * .7); for (let y = gy + fh * .36; y < S; y += 16) { c.beginPath(); c.moveTo(40, y); c.lineTo(340, y); c.stroke(); } win(380, gy + fh * .34, 92, fh * .3, { bars: 2, sill: 1 }); } // a garage door
-    else { c.fillStyle = '#7a5234'; c.fillRect(212, gy + fh * .42, 96, fh * .58); c.strokeStyle = ink; c.lineWidth = 3; c.strokeRect(212, gy + fh * .42, 96, fh * .58); win(46, gy + fh * .32, 120, fh * .36, { bars: 2, sill: 1, box: 1 }); win(348, gy + fh * .32, 120, fh * .36, { bars: 2, sill: 1 }); }
-    c.fillStyle = 'rgba(96,74,128,.3)'; c.fillRect(0, S - 20, S, 20); c.restore(); }
+    else if (i % 8 === 3) { c.fillStyle = '#d9dde3'; c.fillRect(40, gy + fh * .3, 300, fh * .7); c.strokeStyle = ink; c.lineWidth = 6; c.strokeRect(40, gy + fh * .3, 300, fh * .7); for (let y = gy + fh * .36; y < S; y += 16) { c.beginPath(); c.moveTo(40, y); c.lineTo(340, y); c.stroke(); } win(380, gy + fh * .34, 92, fh * .3, { bars: 2, sill: 1 }); } // a garage door
+    else { c.fillStyle = '#7a5234'; c.fillRect(212, gy + fh * .42, 96, fh * .58); c.strokeStyle = ink; c.lineWidth = 6; c.strokeRect(212, gy + fh * .42, 96, fh * .58); win(46, gy + fh * .32, 120, fh * .36, { bars: 2, sill: 1, box: 1 }); win(348, gy + fh * .32, 120, fh * .36, { bars: 2, sill: 1 }); }
+    c.fillStyle = 'rgba(96,60,150,.3)'; c.fillRect(0, S - 20, S, 20); c.strokeStyle = ink; c.lineWidth = 14; c.strokeRect(0, 0, S, S); c.restore(); } // every front gets a fat ink outline: flat candy colour, black line
   { c.save(); c.translate(2 * S, 3 * S); // tile 14: two drinks machines, a corner chevron, and a poster
     [['#e23b34', 0], ['#2d7fe0', 128]].forEach(([m, x]) => { c.fillStyle = m; c.fillRect(x, 0, 128, 256); c.fillStyle = '#eef6ff'; c.fillRect(x + 12, 14, 104, 128); for (let r = 0; r < 3; r++) for (let k = 0; k < 5; k++) { c.fillStyle = pick(['#ff9f1c', '#2ec4b6', '#e71d36', '#ffffff', '#7b2cbf', '#80ed99']); c.fillRect(x + 18 + k * 19.5, 22 + r * 40, 13, 28); } c.fillStyle = '#16181d'; c.fillRect(x + 22, 196, 84, 30); c.fillStyle = '#fff'; c.fillRect(x + 84, 156, 22, 26); c.strokeStyle = ink; c.lineWidth = 4; c.strokeRect(x + 2, 2, 124, 252); });
     c.fillStyle = '#f7f4ec'; c.fillRect(256, 0, 256, 128); c.fillStyle = '#e02a22'; for (let k = 0; k < 3; k++) { const x = 276 + k * 78; c.beginPath(); c.moveTo(x, 12); c.lineTo(x + 34, 12); c.lineTo(x + 70, 64); c.lineTo(x + 34, 116); c.lineTo(x, 116); c.lineTo(x + 36, 64); c.fill(); }
@@ -57,14 +57,14 @@ vC*=instanceColor;
 #endif
 vN=mat3(modelMatrix)*n;vUv=uv;vec4 mv=modelViewMatrix*p;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
 const WFS = `uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC;uniform float uFog;varying vec3 vC,vN;varying vec2 vUv;varying float vD;
-void main(){vec3 a=vC;if(vUv.x>=0.)a*=texture2D(map,vUv).rgb;vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(-.03,.08,d)*.72+smoothstep(.5,.62,d)*.28;
+void main(){vec3 a=vC;if(vUv.x>=0.)a*=texture2D(map,vUv).rgb;vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d);
 gl_FragColor=vec4(mix(uFogC,a*mix(uShC,uSunC,l),exp(-vD*uFog)),1.);}`;
 const wmat = (o = {}) => new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(ATL.tex) }, vertexShader: WVS, fragmentShader: WFS, vertexColors: true, ...STEN, ...o });
 const WM = wmat(), WM2 = wmat({ side: THREE.DoubleSide });
 const wmesh = (g, m = WM, p = world) => { const o = new THREE.Mesh(g, m); o.renderOrder = RO.world; p.add(o); return o; };
 
 // ── the town, built along the samples
-const stat = new MB(), SHADE = [], TREES = [], POLES = [], sdir = new V(-SUND[0].x, 0, -SUND[0].z).normalize(), ROOFS = ['#c9573f', '#5d80b6', '#6d7482', '#3f9187', '#b9794c', '#8a5a7a'];
+const stat = new MB(), SHADE = [], TREES = [], POLES = [], sdir = new V(-SUND[0].x, 0, -SUND[0].z).normalize(), ROOFS = ['#ff5fa8', '#35b8ff', '#8a5cff', '#2fd6a0', '#ff8a3c', '#3a2a5c'];
 function building(x, y, z, ry, w, d, fl) { const t = rpick(fl === 1 ? T1 : fl === 2 ? T2 : T3), h = fl * 3.25 + .5, m = M4(x, y, z, ry), wall = TILE[t].wall, rc = col(rpick(ROOFS)), P = (a, b, c) => new V(a, b, c).applyMatrix4(m);
   stat.box(M4(x, y - 4, z, ry), w, 4, d, wall); stat.box(m, w, h, d, wall, { front: tileUV(t), top: col('#b9b4ad') });
   if (rnd() < .65) { const rh = d * .26, ex = w / 2 + .35, ez = d / 2 + .45; stat.quad(P(-ex, h, ez), P(ex, h, ez), P(ex, h + rh, 0), P(-ex, h + rh, 0), rc).quad(P(ex, h, -ez), P(-ex, h, -ez), P(-ex, h + rh, 0), P(ex, h + rh, 0), rc); const x2 = w / 2, z2 = d / 2; stat.quad(P(-x2, h, -z2), P(-x2, h, z2), P(-x2, h + rh, 0), P(-x2, h + rh, 0), wall).quad(P(x2, h, z2), P(x2, h, -z2), P(x2, h + rh, 0), P(x2, h + rh, 0), wall); }
@@ -84,7 +84,7 @@ for (const side of [-1, 1]) { let gap = 0;
   for (let k = 0; k < 1500 && TREES.length < 430; k++) { const x = rnd(-400, 520), z = rnd(-240, 300), n = nearest(x, z); if (n.d < W + 9 || n.d > 190 || (ZONE[n.i] === 1 && n.d < 30) || hill(x, z) < 1.8 || (z > 268 && ZONE[n.i] === 2)) continue; tree(x, z, rnd(.9, 1.9)); } }
 function hill2(x, z) { const n = nearest(x, z), flat = ZONE[n.i] === 1 ? 26 : W + 13; return lerp(SY[n.i] - .3, hill(x, z), s01((n.d - flat) / 45)); } // the land as built: level beside the road, the hill's own shape further out
 // poles and their wires, the guard rails, the sea wall, the chevrons
-for (let i = 4; i < N; i += 16) { const z = ZONE[i]; if (!z) continue; const side = z === 2 ? 1 : -1, o = (W + 1.55) * side, x = SX[i] - TZ[i] * o, zz = SZ[i] + TX[i] * o, ry = Math.atan2(TX[i], TZ[i]) + Math.PI / 2, m = M4(x, SY[i] + .1, zz, ry), pc = col('#8f7f74');
+for (let i = 4; i < N; i += 16) { const z = ZONE[i]; if (!z) continue; const side = z === 2 ? 1 : -1, o = (W + 1.55) * side, x = SX[i] - TZ[i] * o, zz = SZ[i] + TX[i] * o, ry = Math.atan2(TX[i], TZ[i]) + Math.PI / 2, m = M4(x, SY[i] + .1, zz, ry), pc = col('#3a2a5c');
   stat.box(m, .24, 8.6, .24, pc).box(M4(0, 7.5, 0).premultiply(m), .16, .16, 2.3, pc).box(M4(0, 6.8, 0).premultiply(m), .14, .14, 1.5, pc); if (i % 32 < 16) stat.add(new THREE.CylinderGeometry(.3, .3, .8, 8), M4(.35, 6.1, 0).premultiply(m), col('#b9bcc4'));
   stat.box(M4(0, 6.2, side * .9).premultiply(m), .1, .1, 1.9, pc).box(M4(0, 6.02, side * 1.8).premultiply(m), .26, .14, .5, col('#f4f1e6')); POLES.push({ i, m }); } // (the pole's z axis points across the road, away from it on the left)
 { const rc = col('#f2f0ea'), rd = col('#c8c6d0'), wc = col('#e6e0d2'), pt = (i, o, y) => new V(SX[i] - TZ[i] * o, SY[i] + y, SZ[i] + TX[i] * o);
@@ -109,16 +109,16 @@ const LAMPS = [];
 wmesh(stat.geo(), WM2).frustumCulled = false;
 { const pts = [], Y = [7.58, 7.58, 6.88]; for (let k = 0; k < POLES.length; k++) { const a = POLES[k], b = POLES[(k + 1) % POLES.length]; if (md(a.i, b.i) > 17) continue; // three wires, pole to pole, hanging a little
     [-1.05, 1.05, .65].forEach((z, w) => { const A = new V(0, Y[w], z).applyMatrix4(a.m), B = new V(0, Y[w], z).applyMatrix4(b.m); for (let s = 0; s < 6; s++) for (const t of [s / 6, (s + 1) / 6]) pts.push(lerp(A.x, B.x, t), lerp(A.y, B.y, t) - Math.sin(t * Math.PI) * .55, lerp(A.z, B.z, t)); }); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#4a4658', ...STEN })); l.renderOrder = RO.world; l.frustumCulled = false; world.add(l); }
-{ const b = new MB(), g1 = col('#4fb24a'), g2 = col('#66c957'), g3 = col('#43a046'); // one tree, drawn four hundred times
-  b.add(new THREE.CylinderGeometry(.16, .26, 2.8, 5, 1, true), M4(0, 1.4, 0), col('#8d5d3f')).add(new THREE.IcosahedronGeometry(1.9, 1), M4(0, 3.9, 0), g1).add(new THREE.IcosahedronGeometry(1.3, 0), M4(1.2, 3.1, .4), g3).add(new THREE.IcosahedronGeometry(1.35, 0), M4(-.9, 3.3, -.6), g2).add(new THREE.IcosahedronGeometry(1.1, 0), M4(.2, 5.1, .3), g2);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#1d1233', ...STEN })); l.renderOrder = RO.world; l.frustumCulled = false; world.add(l); }
+{ const b = new MB(), g1 = col('#7be04a'), g2 = col('#a8f25c'), g3 = col('#3fc98a'); // one tree, drawn four hundred times
+  b.add(new THREE.CylinderGeometry(.16, .26, 2.8, 5, 1, true), M4(0, 1.4, 0), col('#6a3fa0')).add(new THREE.IcosahedronGeometry(1.9, 1), M4(0, 3.9, 0), g1).add(new THREE.IcosahedronGeometry(1.3, 0), M4(1.2, 3.1, .4), g3).add(new THREE.IcosahedronGeometry(1.35, 0), M4(-.9, 3.3, -.6), g2).add(new THREE.IcosahedronGeometry(1.1, 0), M4(.2, 5.1, .3), g2);
   const im = new THREE.InstancedMesh(b.geo(), WM, TREES.length); TREES.forEach((t, k) => { im.setMatrixAt(k, M4(t[0], t[1], t[2], t[4], t[3], t[3] * t[5])); im.setColorAt(k, _c.setRGB(t[7], t[6], t[7] * .9)); if (nearest(t[0], t[2]).d < W + 11) SHADE.push([t[0] + sdir.x * 3.5, t[2] + sdir.z * 3.5, 2.6 * t[3] + 2.2]); });
   im.renderOrder = RO.world; im.frustumCulled = false; world.add(im); }
 const MILLS = [[-262, -78], [-300, -8], [-236, -150]].map(([x, z], k) => { const y = hill(x, z), b = new MB(), g = new THREE.Group(); stat2add(x, y, z); for (let a = 0; a < 3; a++) b.add(new THREE.BoxGeometry(.7, 13, .18), new THREE.Matrix4().makeRotationZ(a * 2.094).multiply(new THREE.Matrix4().makeTranslation(0, 6.8, 0)), WHITE); g.add(wmesh(b.geo(), WM, g)); g.position.set(x, y + 27, z + 1.4); world.add(g); return g; });
 function stat2add(x, y, z) { const b = new MB(); b.add(new THREE.CylinderGeometry(.5, 1.1, 27, 8), M4(x, y + 13.5, z), WHITE).add(new THREE.BoxGeometry(1.2, 1.2, 3), M4(x, y + 27, z), WHITE); wmesh(b.geo()); }
 
 // ── the land: a grid that is flat beside the road and hill further out
-{ const x0 = -460, z0 = -300, cs = 8, nx = 130, nz = 98, pos = [], cl = [], uv = [], idx = [], ga = col('#7ccb5c'), gb = col('#5cb24f'), gc = col('#93d46a'), sand = col('#f3e6b9'), plaza = col('#d2cbbd'), c = new C();
+{ const x0 = -460, z0 = -300, cs = 8, nx = 130, nz = 98, pos = [], cl = [], uv = [], idx = [], ga = col('#8ee85a'), gb = col('#6fdc6a'), gc = col('#c8f570'), sand = col('#ffe9a8'), plaza = col('#f6d8ec'), c = new C();
   for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = x0 + i * cs, z = z0 + j * cs, n = nearest(x, z), town = ZONE[n.i] === 1, flat = town ? 26 : W + 13, h0 = hill(x, z), h = lerp(SY[n.i] - .3, h0, s01((n.d - flat) / 45)), r = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453, f = r - Math.floor(r);
     c.copy(ga).lerp(gb, f).lerp(gc, clamp((h - 9) / 9, 0, 1)); if (h < 2.2) c.lerp(sand, s01((2.2 - h) / .9)); if (town) c.lerp(plaza, 1 - s01((n.d - 20) / 12)); pos.push(x, h, z); cl.push(c.r, c.g, c.b); uv.push(-1, -1); }
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, d = a + nx + 1, e = d + 1; idx.push(a, d, b, b, d, e); }
@@ -139,15 +139,15 @@ const PUD = [...Array(34)].map(() => ({ s: rnd(70, TL - 20), lat: rnd(-W + 1.6, 
     fragmentShader: `${NOISE}${SKY}uniform vec3 uShC,uEye;uniform float uFog,uWet;varying vec4 vA;varying vec2 vE;varying vec3 vP;varying float vD;
     void main(){float lat=vA.x,s=vA.y,al=abs(lat),W=${W.toFixed(2)},TL=${TL.toFixed(3)};vec3 c;float n1=vn(vP.xz*.33),n2=vn(vP.xz*2.7);
       float leaf=vn(vP.xz*.5)*.6+vn(vP.xz*1.6+5.)*.4,sh=smoothstep(0.,.07,vA.w*1.2-leaf)*min(uSunI,1.); // shade under trees and beside houses, dappled
-      if(al<W+.24){c=mix(vec3(.80,.775,.80),vec3(.715,.70,.75),n1*.7+n2*.3);
+      if(al<W+.24){c=mix(vec3(.79,.73,.88),vec3(.70,.64,.82),step(.5,n1*.7+n2*.3));
         float edge=smoothstep(.1,.07,abs(al-(W-.5))),dash=smoothstep(.09,.06,al)*step(.5,fract(s/9.));c=mix(c,vec3(.98,.97,.94),max(edge,dash)*.92);
-        float kb=smoothstep(W-.34,W-.3,al)*step(.0105,abs(vE.y));c=mix(c,mix(vec3(.96),vec3(.9,.2,.17),step(.5,fract(s/2.4))),kb);
+        float kb=smoothstep(W-.34,W-.3,al)*step(.0105,abs(vE.y));c=mix(c,mix(vec3(.98),vec3(1.,.18,.54),step(.5,fract(s/2.4))),kb);
         float ds=min(s,TL-s);if(ds<.9){vec2 q=floor(vec2(lat,s<TL*.5?s:s-TL)/.6);c=mix(vec3(.09),vec3(.97),mod(q.x+q.y,2.));}
         float pd=max(vA.z,uWet*vn(vP.xz*.11+9.)*1.25-.22)+(vn(vP.xz*.8)-.5)*.42,pm=smoothstep(.44,.5,pd);
         if(pm>0.||uWet>0.){vec3 v=normalize(vP-uEye),r=reflect(v,vec3(0.,1.,0.));r.xz+=uWet*(vn(vP.xz*6.+uTime*3.)-.5)*.07;vec3 rs=sky(normalize(r),0);float fr=.55+.45*pow(1.-max(-v.y,0.),3.);
           c=mix(c,c*.8,smoothstep(.36,.44,pd)*(1.-pm));c=mix(c,c*.6+rs*.3,uWet*.75*(1.-pm));c=mix(c,mix(c*.45,rs,fr),pm);sh*=1.-pm*.75;}}
-      else{vec3 pave=vec3(.87,.85,.82)*(.94+.06*n2);vec2 g=abs(fract(vec2(s,al-W)/1.1)-.5);pave*=1.-.1*smoothstep(.44,.48,max(g.x,g.y));pave=mix(pave,vec3(.95,.94,.9),smoothstep(W+.6,W+.34,al));
-        c=mix(mix(vec3(.47,.77,.36),vec3(.37,.68,.31),n1*.6+n2*.4),pave,vE.x);}
+      else{vec3 pave=vec3(.99,.87,.94)*(.94+.06*n2);vec2 g=abs(fract(vec2(s,al-W)/1.1)-.5);pave*=1.-.1*smoothstep(.44,.48,max(g.x,g.y));pave=mix(pave,vec3(.95,.94,.9),smoothstep(W+.6,W+.34,al));
+        c=mix(mix(vec3(.56,.91,.35),vec3(.44,.86,.42),step(.5,n1*.6+n2*.4)),pave,vE.x);}
       c*=mix(uSunC,uShC,sh);gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog)),1.);}` })).frustumCulled = false; }
 
 // ── sea and sky
@@ -170,8 +170,9 @@ function carGeo(hex) { const b = new MB(), c = col(hex), dk = col('#17181d'), gl
     b.add(new THREE.BoxGeometry(.36, .13, .06), Tm(s * .55, .63, -1.93), col('#fff6c9')).add(new THREE.BoxGeometry(.42, .11, .06), Tm(s * .53, .65, 1.93), col('#ff2b2b')).add(new THREE.BoxGeometry(.05, .16, 1.36), Tm(s * .62, 1.03, .32), c); }
   return b.geo(); }
 const blobTex = (() => { const { ctx, tex } = ctex(64, 64, false), g = ctx.createRadialGradient(32, 32, 4, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.6, 'rgba(255,255,255,.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64); return tex; })();
-const RCOL = ['#ffd23f', '#ff7a2e', '#35cfa8', '#3f7bff', '#ff5fa2', '#f2f3f5'], RNAME = ['SOL', 'MIKAN', 'MINT', 'AO', 'MOMO', 'YUKI'];
-const RIV = RCOL.map((hex, k) => { const g = new THREE.Group(); g.rotation.order = 'YXZ'; wmesh(carGeo(hex), WM, g); const sh = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobTex, color: '#1c2148', transparent: true, opacity: .5, depthWrite: false, ...STEN })); sh.position.y = .05; sh.renderOrder = RO.world + 1; g.add(sh); world.add(g);
+const OUTM = new THREE.MeshBasicMaterial({ color: '#1d1233', side: THREE.BackSide, ...STEN }); // the ink line round every car: the same car again, a little bigger, inside out
+const RCOL = ['#ffe14d', '#19c3ff', '#7ed321', '#ff8a3c', '#a45cff', '#ffffff'], RNAME = ['SOL', 'MIKAN', 'MINT', 'AO', 'MOMO', 'YUKI'];
+const RIV = RCOL.map((hex, k) => { const g = new THREE.Group(); g.rotation.order = 'YXZ'; const cg = carGeo(hex); wmesh(cg, WM, g); const ol = new THREE.Mesh(cg, OUTM); ol.scale.set(1.05, 1.04, 1.03); ol.position.y = -.02; ol.renderOrder = RO.world; g.add(ol); const sh = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobTex, color: '#1c2148', transparent: true, opacity: .5, depthWrite: false, ...STEN })); sh.position.y = .05; sh.renderOrder = RO.world + 1; g.add(sh); world.add(g);
   return { k, g, hex, name: RNAME[k], s: 0, prog: 0, lat: 0, lt: 0, v: 0, skill: 1 - k * .018, bias: (k % 2 ? 1 : -1) * (.5 + k * .22), honk: 0, o: {} }; });
 
 // ── particles (track space): sparks off a wall, spray off a wet road, tyre smoke, confetti. One Points object, one pool
