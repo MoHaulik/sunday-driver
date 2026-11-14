@@ -1,6 +1,6 @@
 
 // ═══════════════════════════ AUDIO: every sound is synthesized. An engine that follows the revs, wind, tyres, rain, three rival engines placed in space, and a radio ═══════════════════════════
-const A = { ctx: null }, RADIO = { on: false, next: 0, step: 0 };
+const A = { ctx: null }, RADIO = { on: false, next: 0, step: 0, st: 0, cool: 0 };
 function audioInit() {
   if (A.ctx) { A.ctx.resume(); return; }
   const c = A.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -51,17 +51,17 @@ function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.sfx;
     case 'fanfare': [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => { tone(o, 'triangle', f, 0, i === 6 ? .9 : .16, .16, i * .13); tone(o, 'square', f / 2, 0, i === 6 ? .9 : .16, .04, i * .13); }); break;
   } }
 // the radio: sixteen steps a bar, four bars round. FMaj7, Em7, Dm7, G7, the way a summer afternoon sounds
-const CHORDS = [[5, 9, 12, 16], [4, 7, 11, 14], [2, 5, 9, 12], [7, 11, 14, 17]], hz = n => 130.81 * 2 ** (n / 12);
-function radio() { if (!A.ctx || !RADIO.on) return; const c = A.ctx, o = A.radIn, st = 60 / 104 / 4; if (RADIO.next < c.currentTime - .3) RADIO.next = c.currentTime + .05;
+const STATIONS = [{ name: 'NXT FM · Sunday Drive', bpm: 104, ch: [[5, 9, 12, 16], [4, 7, 11, 14], [2, 5, 9, 12], [7, 11, 14, 17]] }, { name: 'Radio Kyst · Night Shift', bpm: 86, ch: [[9, 12, 16, 19], [5, 9, 12, 16], [2, 5, 9, 12], [4, 8, 11, 14]] }, { name: 'Radio off', bpm: 100, ch: null }], hz = n => 130.81 * 2 ** (n / 12);
+function radio() { const ST = STATIONS[RADIO.st]; if (!A.ctx || !RADIO.on || !ST.ch) return; const c = A.ctx, o = A.radIn, st = 60 / ST.bpm / 4; if (RADIO.next < c.currentTime - .3) RADIO.next = c.currentTime + .05;
   const nt = (type, f, t, d, g, a = .005) => { const os = c.createOscillator(), gn = c.createGain(); os.type = type; os.frequency.value = f; gn.gain.setValueAtTime(.0001, t); gn.gain.exponentialRampToValueAtTime(g, t + a); gn.gain.exponentialRampToValueAtTime(.0001, t + d); os.connect(gn).connect(o); os.start(t); os.stop(t + d + .02); };
   const ns = (t, d, g, f, type = 'highpass') => { const s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain(); s.buffer = A.nb; fl.type = type; fl.frequency.value = f; gn.gain.setValueAtTime(g, t); gn.gain.exponentialRampToValueAtTime(.0001, t + d); s.connect(fl).connect(gn).connect(o); s.start(t, Math.random()); s.stop(t + d + .02); };
-  while (RADIO.next < c.currentTime + .18) { const t = RADIO.next, s = RADIO.step % 16, bar = (RADIO.step >> 4) % 4, ch = CHORDS[bar], sw = s % 2 ? st * .16 : 0, T0 = t + sw;
+  while (RADIO.next < c.currentTime + .18) { const t = RADIO.next, s = RADIO.step % 16, bar = (RADIO.step >> 4) % 4, ch = ST.ch[bar], sw = s % 2 ? st * .16 : 0, T0 = t + sw;
     if (s % 4 === 0) { const os = c.createOscillator(), gn = c.createGain(); os.frequency.setValueAtTime(140, T0); os.frequency.exponentialRampToValueAtTime(48, T0 + .11); gn.gain.setValueAtTime(.5, T0); gn.gain.exponentialRampToValueAtTime(.0001, T0 + .2); os.connect(gn).connect(o); os.start(T0); os.stop(T0 + .22); } // kick
     if (s === 4 || s === 12) { ns(T0, .14, .2, 1500, 'bandpass'); nt('triangle', 190, T0, .08, .12); } ns(T0, s % 4 === 2 ? .09 : .03, s % 2 ? .035 : .06, 7000);                                                                                 // snare, hats
     if ([0, 3, 6, 8, 11, 14].includes(s)) nt('triangle', hz(ch[0] - 12 + (s === 6 || s === 14 ? 12 : 0)), T0, st * 1.7, .34, .008);                                                                                                           // bass
     if (s === 0 || s === 6 || s === 10) for (const n of ch) { nt('sine', hz(n + 12), T0, s ? st * 1.6 : st * 5, .075); nt('triangle', hz(n + 12) * 2.005, T0, st * 1.2, .018); }                                                                 // electric piano
     const mel = [[16, 0, 14, 0, 12, 0, 9, 12, 0, 0, 14, 0, 16, 0, 19, 0], [14, 0, 0, 11, 0, 14, 0, 0, 16, 0, 14, 0, 11, 0, 7, 0], [12, 0, 9, 0, 12, 0, 14, 16, 0, 0, 12, 0, 9, 0, 5, 0], [11, 0, 14, 0, 17, 0, 14, 0, 19, 0, 17, 0, 14, 11, 0, 0]][bar][s];
-    if (mel && (RADIO.step >> 6) % 2) nt('square', hz(mel + 12), T0, st * 1.5, .03, .01); RADIO.next += st; RADIO.step++; } }
+    if (mel && !RADIO.st && (RADIO.step >> 6) % 2) nt('square', hz(mel + 12), T0, st * 1.5, .03, .01); RADIO.next += st; RADIO.step++; } }
 function updateListener() { if (!A.ctx) return; const L = A.ctx.listener; camera.getWorldPosition(_v); camera.getWorldDirection(_v4); _v3.copy(YA).applyQuaternion(camera.getWorldQuaternion(_q));
   if (L.positionX) { L.positionX.value = _v.x; L.positionY.value = _v.y; L.positionZ.value = _v.z; L.forwardX.value = _v4.x; L.forwardY.value = _v4.y; L.forwardZ.value = _v4.z; L.upX.value = _v3.x; L.upY.value = _v3.y; L.upZ.value = _v3.z; } }
 const setPan = (p, v) => { p.positionX.value = v.x; p.positionY.value = v.y; p.positionZ.value = v.z; };

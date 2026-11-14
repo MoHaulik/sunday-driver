@@ -1,14 +1,14 @@
 
 // ═══════════════════════════ YOUR HANDS: 25 tracked joints each. They drive the wheel, pull the handbrake, press the button, and are cut out of the cockpit so you see your real ones ═══════════════════════════
 const JN = ['wrist', 'thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip', ...['index', 'middle', 'ring', 'pinky'].flatMap(f => ['metacarpal', 'phalanx-proximal', 'phalanx-intermediate', 'phalanx-distal', 'tip'].map(s => `${f}-finger-${s}`))];
-const HANDSRC = {}, OCC = new THREE.MeshBasicMaterial({ colorWrite: false }), DBG = {}; // OCC: depth only. Drawn first, it stops the cockpit and the world being drawn over your hands
+const SCRP = new V(.385, -.272, -.55), HANDSRC = {}, OCC = new THREE.MeshBasicMaterial({ colorWrite: false }), DBG = {}; // OCC: depth only. Drawn first, it stops the cockpit and the world being drawn over your hands
 const handInst = hd => { const root = skClone(HANDSRC[hd]), sk = root.getObjectByProperty('type', 'SkinnedMesh'); sk.material = OCC; sk.frustumCulled = false; sk.renderOrder = RO.hand; scene.add(root); return { root, bones: JN.map(n => root.getObjectByName(n)) }; };
 const PH = [0, 1].map(i => { const h = { i, xh: renderer.xr.getHand(i), ctrl: renderer.xr.getController(i), grip: renderer.xr.getControllerGrip(i), src: null, hd: i ? 'left' : 'right', ok: false, p: new V(), tips: [new V(), new V(), new V()], on: false, g: 0, phi: 0, hb: false, sel: false, occ: {} };
   scene.add(h.xh, h.ctrl, h.grip); h.ctrl.addEventListener('connected', e => { h.src = e.data; if (e.data && (e.data.handedness === 'left' || e.data.handedness === 'right')) h.hd = e.data.handedness; });
   h.ctrl.addEventListener('disconnected', () => { h.src = null; }); h.ctrl.addEventListener('selectstart', () => { h.sel = true; }); return h; });
 const IN = { steer: 0, thr: 0, brake: 0, hb: 0, auto: true, press: false, hands: 0, everHeld: false }, KEY = {};
 function updHands(dt) {
-  const xr = renderer.xr.isPresenting, WC = CFG.WHEEL; let sum = 0, n = 0, press = false, hbHand = null; IN.honk = false;
+  const xr = renderer.xr.isPresenting, WC = CFG.WHEEL; let sum = 0, n = 0, press = false, tune = false, hbHand = null; IN.honk = false;
   for (const h of PH) { let ok = false; const J = h.xh.joints, w = J && J.wrist;
     for (const k in h.occ) h.occ[k].root.visible = false;
     if (DBG.hand) { const d = DBG.hand(h.i); if (d) { ok = true; h.p.copy(d.p); h.tips.forEach(t => t.copy(d.tip || d.p)); } }
@@ -18,32 +18,33 @@ function updHands(dt) {
     else if (xr && h.src && h.grip.visible) { ok = true; rig.worldToLocal(h.p.copy(h.grip.position)); h.tips.forEach(t => rig.worldToLocal(t.copy(h.ctrl.position))); if (h.sel) press = true; } // controllers work too: hold them like the rim, trigger = the button
     h.sel = false; h.ok = ok; if (!ok) { h.on = h.hb = false; continue; }
     // the wheel: where is this hand round the rim, and how far from it
-    const rel = _v.subVectors(h.p, WH.c), ax = rel.dot(WH.a), ru = rel.dot(WH.u), rv = rel.dot(WH.v), dist = Math.hypot(Math.hypot(ru, rv) - WC.R, ax); h.phi = Math.atan2(rv, ru);
-    if (!h.on && !h.hb && dist < WC.grab) { h.on = true; h.g = h.phi - WH.rot; sfx('grab'); IN.everHeld = true; } else if (h.on && dist > WC.drop) h.on = false;
+    const rel = _v.subVectors(h.p, WH.c), ax = rel.dot(WH.a), ru = rel.dot(WH.u), rv = rel.dot(WH.v), rr = Math.hypot(ru, rv), near = Math.abs(ax) < .15 && rr < WC.R + .14 && rr > .05; h.phi = Math.atan2(rv, ru); // generous: a hand anywhere on or near the wheel is holding it
+    if (!h.on && !h.hb && near) { h.on = true; h.g = h.phi - WH.rot; sfx('grab'); IN.everHeld = true; } else if (h.on && (Math.abs(ax) > .24 || rr > WC.R + .24)) h.on = false;
     if (h.on) { sum += WH.rot + wrapPi(h.phi - h.g - WH.rot); n++; }
     // the handbrake: take the lever and lift
     const dh = h.p.distanceTo(HB.p); if (!h.on && !h.hb && dh < CFG.HB.grab && HB.hold < 0) { h.hb = true; HB.hold = h.i; sfx('grab'); } else if (h.hb && dh > CFG.HB.drop) { h.hb = false; HB.hold = -1; }
     if (h.hb) hbHand = h;
-    for (const t of h.tips) { if (t.distanceTo(startG.position) < .042) press = true; const r = _v2.subVectors(t, WH.c), a = r.dot(WH.a); if (Math.abs(a) < .05 && Math.sqrt(Math.max(0, r.lengthSq() - a * a)) < .05) IN.honk = true; } }
+    for (const t of h.tips) { if (t.distanceTo(startG.position) < .045) press = true; if (t.distanceTo(SCRP) < .075) tune = true; const r = _v2.subVectors(t, WH.c), a = r.dot(WH.a); if (Math.abs(a) < .05 && Math.sqrt(Math.max(0, r.lengthSq() - a * a)) < .05) IN.honk = true; } }
   if (HB.hold >= 0 && !PH[HB.hold].hb) HB.hold = -1;
   if (SIM && !DBG.hand) { // keys: arrows or WASD to steer, space = handbrake, enter = the start button, H = horn
-    const l = KEY.arrowleft || KEY.a, r = KEY.arrowright || KEY.d, t = (r ? -1 : 0) + (l ? 1 : 0); WH.rot += (t * WC.full - WH.rot) * damp(dt, t ? .22 : .12); n = KEY.arrowdown || KEY.s ? 0 : 1; sum = WH.rot; HB.pull += ((KEY[' '] ? 1 : 0) - HB.pull) * damp(dt, .06); press = !!KEY.enter; IN.honk = !!KEY.h; KEY.enter = false; if (l || r) IN.everHeld = true; }
+    const l = KEY.arrowleft || KEY.a, r = KEY.arrowright || KEY.d, t = (r ? -1 : 0) + (l ? 1 : 0); WH.rot += (t * WC.full - WH.rot) * damp(dt, t ? .22 : .12); n = KEY.arrowdown || KEY.s ? 0 : 1; sum = WH.rot; HB.pull += ((KEY[' '] ? 1 : 0) - HB.pull) * damp(dt, .06); press = !!KEY.enter; IN.honk = !!KEY.h; tune = !!KEY.r; KEY.enter = false; if (l || r) IN.everHeld = true; }
   else { if (n) { const tgt = sum / n; WH.rot += (clamp(tgt, -WC.lock, WC.lock) - WH.rot) * damp(dt, .035); if (Math.abs(tgt) > WC.lock) for (const h of PH) if (h.on) h.g = h.phi - WH.rot; } else WH.rot += -WH.rot * damp(dt, .16); // let go and it centres itself
     let pull = 0; if (hbHand) { const r = _v.subVectors(hbHand.p, hbG.position); pull = clamp((Math.atan2(r.y, -r.z) - .12) / .55, 0, 1); } const p0 = HB.pull; HB.pull += (pull - HB.pull) * damp(dt, hbHand ? .03 : .08); if ((p0 * 5 | 0) !== (HB.pull * 5 | 0) && hbHand) sfx('ratchet'); }
   wheelS.rotation.z = WH.rot; hbG.rotation.x = .12 + HB.pull * .62; HB.p.set(0, 0, -.185).applyAxisAngle(XA, hbG.rotation.x).add(hbG.position);
   IN.hands = n; IN.press = press && !IN.pressHeld; IN.pressHeld = press;
-  if (!IN.auto) { IN.steer = clamp(-WH.rot / WC.full, -1, 1); IN.thr = n ? 1 : 0; IN.brake = n ? 0 : 1; IN.hb = HB.pull > .3 ? HB.pull : 0; }
+  if (!IN.auto) { IN.steer = clamp(-WH.rot / WC.full, -1, 1); IN.thr = n ? 1 : 0; IN.brake = n ? 0 : .38; IN.hb = HB.pull > .3 ? HB.pull : 0; }
+  if (tune && T > RADIO.cool) { RADIO.cool = T + .9; RADIO.st = (RADIO.st + 1) % STATIONS.length; sfx('click'); say('♪ ' + STATIONS[RADIO.st].name, 1.6); } // touch the middle screen: next station
   if (IN.honk && T > WH.horn) { WH.horn = T + .7; sfx('horn'); for (const r of RIV) { const d = r.prog - P.prog; if (d > 0 && d < 34) r.honk = 2.2; } }
 }
 
 // ═══════════════════════════ THE CAR: a point with a heading and a velocity. Grip pulls the velocity round to the heading; the handbrake lets go of it ═══════════════════════════
-const P = { name: 'YOU', hex: '#e6322c', x: 0, y: 0, z: 0, psi: 0, vx: 0, vz: 0, vf: 0, v: 0, yaw: 0, i: 0, s: 0, lat: 0, prog: 0, slip: 0, off: false, boost: 0, charge: 0, gear: 1, rpm: 0, ax: 0, ay: 0, shake: 0, draft: 0, stuck: 0, lapT: 0, best: 0, done: 0, hitT: 0, o: {} };
+const P = { name: 'YOU', hex: '#e6322c', x: 0, y: 0, z: 0, psi: 0, vx: 0, vz: 0, vf: 0, v: 0, yaw: 0, i: 0, s: 0, lat: 0, prog: 0, slip: 0, off: false, boost: 0, charge: 0, gear: 1, rpm: 0, ax: 0, ay: 0, shake: 0, draft: 0, stuck: 0, clean: 0, lapT: 0, best: 0, done: 0, hitT: 0, o: {} };
 function locate(o, wide) { let bi = o.i, bd = 1e12; const R = wide ? N >> 1 : 14; for (let k = -R; k <= R; k++) { const j = ix(o.i + k), dx = o.x - SX[j], dz = o.z - SZ[j], d = dx * dx + dz * dz; if (d < bd) { bd = d; bi = j; } }
   const dx = o.x - SX[bi], dz = o.z - SZ[bi], s0 = o.s; o.i = bi; o.lat = -dx * TZ[bi] + dz * TX[bi]; o.s = ((bi * DS + dx * TX[bi] + dz * TZ[bi]) % TL + TL) % TL; return wrapS(o.s - s0); }
 const GEARS = [0, 9, 17, 25, 33, 41, 70];
 function drive(dt) {
   const fx = Math.sin(P.psi), fz = -Math.cos(P.psi), rx = -fz, rz = fx; let vf = P.vx * fx + P.vz * fz, vr = P.vx * rx + P.vz * rz;
-  const wet = UW.uWet.value, off = Math.abs(P.lat) > W + .35, mu = (off ? .6 : 1) * (1 - .2 * wet), drift = IN.hb > .3 && vf > 9, vmax = (off ? 19 : CFG.VMAX) + (P.boost > 0 ? 9 : 0) + P.draft * 5;
+  const wet = UW.uWet.value, off = Math.abs(P.lat) > W + .35, mu = (off ? .6 : 1) * (1 - .2 * wet), drift = IN.hb > .3 && vf > 9, vmax = (off ? 19 : CFG.VMAX) + (P.boost > 0 ? 9 : 0) + P.draft * 5 + Math.min(P.clean / 14, 1) * 7; P.clean = off ? 0 : P.clean + dt; if (P.clean > 14 && P.clean - dt <= 14 && !IN.auto) { say('CLEAN RUN · FASTER', 1.6); sfx('boost'); } // touch nothing and the car keeps finding more speed
   let a = IN.thr * CFG.ACC * (P.boost > 0 ? 1.8 : 1) * (1 - vf / vmax) - (IN.thr ? .2 : 2.4) - IN.brake * 9 - IN.hb * 6;
   if (!drift && !IN.auto) { const over = vf - VP[ix(P.i + 2)]; if (over > 0) a -= Math.min(10, over * 1.6 + 2) * CFG.ASSIST; }                 // it brakes itself into corners, most of the way
   const ymax = Math.min(vf * .32, CFG.GRIP * mu / Math.max(vf, 5)), want = IN.steer * 1.25 * (drift ? 1.6 : 1);
@@ -54,7 +55,7 @@ function drive(dt) {
   P.prog += locate(P);
   const i = P.i, nx = -TZ[i], nz = TX[i], over = P.lat > LR[i] ? P.lat - LR[i] : P.lat < -LL[i] ? P.lat + LL[i] : 0;
   if (over) { P.x -= nx * over; P.z -= nz * over; P.lat -= over; const vn = P.vx * nx + P.vz * nz; if (vn * over > 0) { const hit = Math.abs(vn), k = 1 - clamp(hit * .03, .01, .28); P.vx = (P.vx - nx * vn * 1.2) * k; P.vz = (P.vz - nz * vn * 1.2) * k; // a wall: slide along it, lose some speed, and the nose comes round
-      P.psi += wrapPi(Math.atan2(TX[i], -TZ[i]) - P.psi) * clamp(hit * .05, .02, .45); P.yaw *= .5; if (T > P.hitT) { P.hitT = T + .16; P.shake = Math.min(1, P.shake + hit * .12); sfx(hit > 4 ? 'bump' : 'scrape', clamp(hit * .15, .3, 1));
+      P.psi += wrapPi(Math.atan2(TX[i], -TZ[i]) - P.psi) * clamp(hit * .05, .02, .45); P.yaw *= .5; P.clean = 0; if (T > P.hitT) { P.hitT = T + .16; P.shake = Math.min(1, P.shake + hit * .12); sfx(hit > 4 ? 'bump' : 'scrape', clamp(hit * .15, .3, 1));
         for (let q = 0; q < 6 + hit; q++) parts.emit(_v.set(P.x + nx * Math.sign(over) * .9 + rand(-.6, .6) * fx, P.y + rand(.2, .6), P.z + nz * Math.sign(over) * .9 + rand(-.6, .6) * fz), _v2.set(P.vx * .6 + rand(-2, 2), rand(1, 4), P.vz * .6 + rand(-2, 2)), _c.set('#ffc46b'), { life: rand(.2, .5), size: .035, glow: 1 }); } } }
   if (drift && P.slip > 1.5) { P.charge = Math.min(2, P.charge + dt); if (Math.random() < dt * 30) parts.emit(_v.set(P.x - fx * 1.6 + rand(-.7, .7) * rx, P.y + .15, P.z - fz * 1.6 + rand(-.7, .7) * rz), _v2.set(rand(-1, 1), rand(.5, 1.5), rand(-1, 1)), _c.set('#e9e6ee'), { life: rand(.5, .9), size: .5, grav: -1, a: .5 }); }
   else if (!drift && P.charge > 0) { if (P.charge > .45) { P.boost = .7 + P.charge * .7; sfx('boost'); say('DRIFT BOOST', 1.4); } P.charge = 0; } P.boost = Math.max(0, P.boost - dt);
@@ -76,7 +77,7 @@ function updRivals(dt, racing) {
     // you and it
     const d = r.prog - P.prog, dl = r.lat - P.lat; if (Math.abs(d) < 4.1 && Math.abs(dl) < 1.8) { const px = 4.1 - Math.abs(d), pl = 1.8 - Math.abs(dl), rxv = -TZ[P.i], rzv = TX[P.i], sg = Math.sign(dl || 1);
       if (pl / 1.8 < px / 4.1) { r.lat += sg * pl * .6; P.x -= rxv * sg * pl * .4; P.z -= rzv * sg * pl * .4; P.vx -= rxv * sg * 1.2; P.vz -= rzv * sg * 1.2; } else if (d > 0) { const dv = P.vf - r.v; if (dv > 0) { const k = (r.v + .5) / Math.max(P.vf, 1); P.vx *= k; P.vz *= k; r.v += dv * .5; } r.prog += px * .5; } else { r.v = Math.min(r.v, P.vf - .5); r.prog -= px * .5; }
-      if (T > P.hitT) { P.hitT = T + .35; P.shake = Math.min(1, P.shake + .5); sfx('bump', .7); } }
+      if (T > P.hitT) { P.hitT = T + .35; P.shake = Math.min(1, P.shake + .5); sfx('bump', .7); P.clean = 0; } }
     if (d > 2 && d < 20 && Math.abs(dl) < 1.5 && P.vf > 20) draft = 1;
     const o = trackAt(r.prog, r.lat, r.o); r.g.position.set(o.x, o.y, o.z); r.g.rotation.set(Math.atan(o.slope), -o.psi - (r.lt - r.lat) * .035, 0); r.s = r.prog;
     if (WX.rain > .3 && r.v > 15 && Math.abs(d) < 60 && Math.random() < dt * 25) parts.emit(_v.set(o.x + rand(-.8, .8), o.y + .2, o.z + rand(-.8, .8)), _v2.set(rand(-1, 1), rand(1, 2.5), rand(-1, 1)), _c.set('#cfdde8'), { life: rand(.5, 1), size: .7, grav: 1, a: .35 });
@@ -85,10 +86,10 @@ function updRivals(dt, racing) {
 }
 function grid() { // the start: six cars in two files ahead of you, and you at the back
   RIV.forEach((r, k) => { r.prog = -CFG.GRID * (k + 1); r.lat = r.lt = k % 2 ? 1.9 : -1.9; r.v = 0; r.done = 0; r.honk = 0; });
-  const o = trackAt(-CFG.GRID * 7, -1.9, P.o); Object.assign(P, { x: o.x, z: o.z, psi: o.psi, vx: 0, vz: 0, vf: 0, v: 0, yaw: 0, prog: -CFG.GRID * 7, i: o.i, s: 0, boost: 0, charge: 0, draft: 0, lapT: 0, best: 0, done: 0, shake: 0, stuck: 0 }); locate(P, true); P.prog = -CFG.GRID * 7; updRivals(0, false); }
+  const o = trackAt(-CFG.GRID * 7, -1.9, P.o); Object.assign(P, { x: o.x, z: o.z, psi: o.psi, vx: 0, vz: 0, vf: 0, v: 0, yaw: 0, prog: -CFG.GRID * 7, i: o.i, s: 0, boost: 0, charge: 0, draft: 0, lapT: 0, best: 0, done: 0, shake: 0, stuck: 0, clean: 0 }); locate(P, true); P.prog = -CFG.GRID * 7; updRivals(0, false); }
 
 // ═══════════════════════════ THE RACE: phases, laps, weather, and the three screens ═══════════════════════════
-const G = { phase: 'poster', t: 0, pt: 0, time: 0, lights: 0, go: 0, fin: [], place: 0, pos: 7, lap: 1, msg: '', msgT: 0, engine: 0, reveal: false, clipZ: 99, hudT: 0, miniT: 0, tipHB: false, again: false };
+const G = { phase: 'poster', t: 0, pt: 0, time: 0, lights: 0, go: 0, fin: [], place: 0, pos: 7, lap: 1, msg: '', msgT: 0, engine: 0, reveal: false, clipZ: 99, hudT: 0, miniT: 0, tipHB: false, again: false, pause: 0, pauseT: 0 };
 function setPhase(p) { G.phase = p; G.t = G.pt = 0; }
 const hit = a => G.pt < a && G.t >= a, say = (m, d = 2) => { G.msg = m; G.msgT = T + d; }, fmt = t => `${t / 60 | 0}:${(t % 60).toFixed(1).padStart(4, '0')}`;
 function openGlass(now) { UG.uSw.value.set(now ? WP.a1 : WP.a0 - .06, now ? 1 : 0, 0); UG.uRoll.value = now ? 1 : 0; UG.uDust.value = now ? 0 : 1; UG.uSplash.value = 0; G.reveal = !now; }
@@ -100,7 +101,11 @@ function updWipers(dt) { const w = WS, auto = WX.rain > .1 && G.phase !== 'ready
   if (G.reveal && w.on) UG.uSw.value.x = Math.max(UG.uSw.value.x, w.a); UG.uRain.value = WX.rain; } // the first sweep is the one that opens the other world
 const standings = () => [P, ...RIV].sort((a, b) => (a.done || 99) - (b.done || 99) || b.prog - a.prog);
 function flow(dt) {
-  G.pt = G.t; G.t += dt; const ph = G.phase, racing = ph === 'race' || ph === 'finish';
+  if (G.pause) { G.pauseT += dt; const t = G.pauseT; IN.auto = true; IN.steer = IN.thr = 0; P.rpm = .2; // paused: the glass is dusty again and it is just your room. The button brings the wipers, and the world, back
+    if (G.pause === 1) { if (IN.press && t > .5) { G.pause = 2; G.pauseT = 0; WS.want = 2; G.reveal = true; sfx('click'); } }
+    else { UG.uSw.value.y = s01((t - .8) / 1); UG.uDust.value = 1 - s01((t - .8) / 1.2); UG.uRoll.value = s01((t - 1) / 1); if (t > 2.3) { openGlass(true); G.pause = 0; } } return; }
+  if ((G.phase === 'race' || G.phase === 'count') && IN.press) { G.pause = 1; G.pauseT = 0; sfx('click'); sfx('whirr'); UG.uSw.value.set(WP.a0 - .06, 0, 0); UG.uRoll.value = 0; UG.uDust.value = 1; G.reveal = false; return; }
+  G.pt = G.t; G.t += dt; const ph = G.phase, racing = ph === 'race' || ph === 'finish'; IN.auto = ph !== 'race';
   if (ph === 'poster') { IN.auto = true; autopilot(.72); drive(dt); updRivals(dt, true); G.engine = 1; WX.t = T % 90 < 50 ? [1, 0, 0] : [0, 0, 1]; } // the landing page: the car drives itself, lap after lap, and the evening comes and goes
   else if (ph === 'place') { if (G.t > .9) { camera.getWorldPosition(_v); camera.getWorldDirection(_v2).setY(0); if (_v2.lengthSq() > .01) { seat(_v, _v2.normalize()); setPhase('boot'); sfx('arrive'); } } }
   else if (ph === 'boot') { G.clipZ = lerp(-2.4, .8, s01(G.t / 1.8)); UG.uDust.value = s01((G.t - .5) / 1.2); if (G.t > 2.2) { G.clipZ = 99; setPhase('ready'); } }
@@ -127,7 +132,7 @@ function flow(dt) {
   else if (ph === 'finish') { autopilot(.55); drive(dt); updRivals(dt, true); for (const r of RIV) if (!r.done && r.prog >= CFG.LAPS * TL) r.done = G.fin.push(r);
     if (G.place <= 3 && G.t < 5 && Math.random() < dt * 60) parts.emit(_v.set(P.x + Math.sin(P.psi) * rand(6, 22) + rand(-5, 5), P.y + rand(3, 6), P.z - Math.cos(P.psi) * rand(6, 22) + rand(-5, 5)), _v2.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)), _c.set(pick(['#ff3b2f', '#ffd23f', '#35cfa8', '#3f7bff', '#ffffff'])), { life: rand(1.5, 2.5), size: .16, grav: 1.5 });
     if (G.t > 4) G.again = true; if (G.again && IN.press) restart(); }
-  if (ph !== 'poster' && ph !== 'race' && ph !== 'finish' && ph !== 'place') { IN.auto = true; IN.steer = IN.thr = IN.hb = 0; IN.brake = 1; drive(dt); updRivals(dt, false); }
+  if (!['poster', 'race', 'finish', 'place'].includes(G.phase)) { IN.auto = true; IN.steer = IN.thr = IN.hb = 0; IN.brake = 1; drive(dt); updRivals(dt, false); }
   if (G.engine && !racing && ph !== 'poster') { P.rpm = .2; P.gear = 0; }
   const all = standings(); G.pos = all.indexOf(P) + 1;
 }
@@ -154,10 +159,11 @@ function setWorld(dt) {
 const MAPP = (() => { let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (let i = 0; i < N; i++) { x0 = Math.min(x0, SX[i]); x1 = Math.max(x1, SX[i]); z0 = Math.min(z0, SZ[i]); z1 = Math.max(z1, SZ[i]); } const k = Math.min(232 / (x1 - x0), 232 / (z1 - z0)); return (x, z) => [144 + (x - (x0 + x1) / 2) * k, 144 + (z - (z0 + z1) / 2) * k]; })();
 function screens() { const ph0 = G.phase;
   setNeedle(needleR, G.engine ? P.rpm * .82 + (ph0 === 'race' ? 0 : Math.sin(T * 20) * .004) : 0); setNeedle(needleS, P.vf * 4.3 / 240); if (ph0 === 'crank' && G.t < 1.9) { const k = Math.sin(clamp(G.t / 1.8, 0, 1) * Math.PI); setNeedle(needleR, k); setNeedle(needleS, k); }
-  startCap.cap.material.color.setScalar(1).multiply(_c.set('#ff3b2f')).multiplyScalar(ph0 === 'ready' || G.again ? .7 + .5 * Math.sin(T * 5) : .35);
+  startCap.cap.material.color.setScalar(1).multiply(_c.set('#ff3b2f')).multiplyScalar(ph0 === 'ready' || G.again || G.pause === 1 ? (Math.sin(T * 9) > 0 ? 1.6 : .2) : .5); startRing.material.opacity = ph0 === 'ready' || G.again || G.pause === 1 ? .5 + .5 * Math.sin(T * 9) : 0; startRing.scale.setScalar(1 + .25 * (T * 1.5 % 1));
   if (T < G.hudT) { if (T >= G.miniT) mini(); return; } G.hudT = T + .09; const c = HUDC.ctx, ph = G.phase, kmh = Math.round(P.vf * 4.3), msg = T < G.msgT ? G.msg : '', F = (w, s, i) => `${i ? 'italic ' : ''}${w} ${s}px "Chakra Petch",sans-serif`;
   c.fillStyle = '#04060a'; c.fillRect(0, 0, 512, 256); c.fillStyle = '#000'; c.fillRect(0, 256, 512, 256); c.textBaseline = 'middle';
-  if (ph === 'ready' || (ph === 'boot')) { c.textAlign = 'center'; c.fillStyle = `rgba(255,59,47,${.55 + .45 * Math.sin(T * 5)})`; c.font = F(700, 62, 1); c.fillText('PRESS START', 256, 108); c.fillStyle = '#8b909a'; c.font = F(500, 26); c.fillText('the red button, right of the wheel', 256, 178); }
+  if (G.pause) { c.textAlign = 'center'; c.fillStyle = '#f3f1ea'; c.font = F(700, 70, 1); c.fillText('PAUSED', 256, 104); c.fillStyle = `rgba(255,59,47,${.55 + .45 * Math.sin(T * 5)})`; c.font = F(500, 28); c.fillText('press START to drive on', 256, 178); }
+  else if (ph === 'ready' || (ph === 'boot')) { c.textAlign = 'center'; c.fillStyle = `rgba(255,59,47,${.55 + .45 * Math.sin(T * 5)})`; c.font = F(700, 62, 1); c.fillText('PRESS START', 256, 108); c.fillStyle = '#8b909a'; c.font = F(500, 26); c.fillText('the red button, right of the wheel', 256, 178); }
   else if (ph === 'crank' && G.t < 2.4) { c.textAlign = 'center'; c.fillStyle = '#f3f1ea'; c.font = 'italic 800 76px Unbounded,sans-serif'; c.fillText('NXT', 256, 112); c.fillStyle = '#ff3b2f'; c.fillRect(120, 176, 272 * clamp(G.t / 2.3, 0, 1), 8); }
   else if (ph === 'finish') { c.textAlign = 'center'; c.fillStyle = G.place === 1 ? '#ffd23f' : '#f3f1ea'; c.font = F(700, 110, 1); c.fillText(`P${G.place}`, 256, 84); c.font = F(700, 34, 1); c.fillStyle = '#f3f1ea'; c.fillText(G.place === 1 ? 'WINNER' : G.place <= 3 ? 'PODIUM' : 'FINISHED', 256, 160);
     c.font = F(500, 24); c.fillStyle = G.again && Math.sin(T * 5) > -.3 ? '#ff3b2f' : '#8b909a'; c.fillText(G.again ? 'PRESS START TO RACE AGAIN' : `${fmt(G.time)}  ·  BEST LAP ${fmt(P.best)}`, 256, 216); }
@@ -169,14 +175,14 @@ function screens() { const ph0 = G.phase;
   if (ph === 'race' || ph === 'count' || ph === 'finish') { const hc = '#c9f6ff'; c.textAlign = 'left'; c.fillStyle = hc; c.font = F(700, 78, 1); c.fillText(`P${ph === 'finish' ? G.place : G.pos}`, 14, 322); c.textAlign = 'right'; c.font = F(700, 40, 1); c.fillText(`LAP ${G.lap}/${CFG.LAPS}`, 500, 300); c.font = F(500, 30); c.fillText(fmt(G.time), 500, 348);
     c.textAlign = 'center'; if (G.lights > 0) for (let k = 0; k < 5; k++) { c.fillStyle = k < G.lights ? '#ff3b2f' : '#30343c'; c.beginPath(); c.arc(176 + k * 40, 320, 15, 0, 7); c.fill(); }
     else if (msg) { c.fillStyle = msg === 'GO!' ? '#5dff8f' : msg === 'WRONG WAY' ? '#ff3b2f' : '#ffe27a'; c.font = F(700, msg.length > 10 ? 30 : 52, 1); c.fillText(msg, 262, 322); } else if (ph === 'race') { c.fillStyle = hc; c.font = F(700, 74, 1); c.fillText(kmh, 262, 318); } }
-  HUDC.tex.needsUpdate = true; hud.material.opacity += ((ph === 'race' || ph === 'count' || ph === 'finish' ? .95 : 0) - hud.material.opacity) * .2;
+  HUDC.tex.needsUpdate = true; hud.material.opacity += (((ph === 'race' || ph === 'count' || ph === 'finish') && !G.pause ? .95 : 0) - hud.material.opacity) * .2;
   if (T >= G.miniT) mini();
 }
 function mini() { G.miniT = T + .22; const m = MINI.ctx, all = standings(); m.fillStyle = '#06080c'; m.fillRect(0, 0, 512, 288); m.strokeStyle = '#3a4150'; m.lineWidth = 9; m.lineJoin = 'round'; m.beginPath(); for (let i = 0; i <= N; i += 4) { const [x, y] = MAPP(SX[i % N], SZ[i % N]); i ? m.lineTo(x, y) : m.moveTo(x, y); } m.closePath(); m.stroke(); m.strokeStyle = '#11141a'; m.lineWidth = 2; m.stroke();
   for (const r of [...RIV, P]) { const o = r === P ? P : r.o, [x, y] = MAPP(o.x, o.z); m.fillStyle = r.hex; m.beginPath(); m.arc(x, y, r === P ? 9 : 6, 0, 7); m.fill(); if (r === P) { m.strokeStyle = '#fff'; m.lineWidth = 3; m.stroke(); } }
   m.textBaseline = 'middle'; all.forEach((r, k) => { const y = 30 + k * 30; if (r === P) { m.fillStyle = 'rgba(255,255,255,.1)'; m.fillRect(296, y - 14, 208, 28); } m.fillStyle = '#8b909a'; m.font = '500 20px "Chakra Petch",sans-serif'; m.textAlign = 'left'; m.fillText(k + 1, 304, y); m.fillStyle = r.hex; m.fillRect(328, y - 9, 8, 18); m.fillStyle = r === P ? '#fff' : '#c9ccd3'; m.font = `${r === P ? 700 : 500} 21px "Chakra Petch",sans-serif`; m.fillText(r.name, 346, y);
     if (k && racingNow()) { m.textAlign = 'right'; m.fillStyle = '#6f7480'; m.font = '500 17px "Chakra Petch",sans-serif'; m.fillText(r.done ? 'FIN' : `+${Math.max(0, (all[0].prog - r.prog) / 30).toFixed(1)}`, 500, y); } });
-  m.fillStyle = '#4fd2ff'; m.font = '500 18px "Chakra Petch",sans-serif'; m.textAlign = 'left'; m.fillText(RADIO.on ? '♪ NXT FM 104.0 · Sunday Drive' : 'NXT FM', 304, 266); MINI.tex.needsUpdate = true;
+  m.fillStyle = '#4fd2ff'; m.font = '500 18px "Chakra Petch",sans-serif'; m.textAlign = 'left'; m.fillText(RADIO.on ? '♪ ' + STATIONS[RADIO.st].name + '  · tap' : 'NXT FM', 304, 266); MINI.tex.needsUpdate = true;
   // the mirror: who is behind you, and how close
   const r = MIRC.ctx, g = r.createLinearGradient(0, 0, 0, 64); g.addColorStop(0, '#' + UW.uZen.value.getHexString()); g.addColorStop(.55, '#' + UW.uHor.value.getHexString()); g.addColorStop(.56, '#8d8a93'); g.addColorStop(1, '#bdb9c2'); r.fillStyle = g; r.fillRect(0, 0, 256, 64);
   for (const q of RIV.filter(q => q.prog < P.prog && P.prog - q.prog < 70).sort((a, b) => a.prog - b.prog)) { const d = P.prog - q.prog, s = clamp(150 / d, 4, 60), x = 128 - (q.lat - P.lat) * 110 / d * 3.2; r.fillStyle = q.hex; r.fillRect(x - s / 2, 37 - s * .32, s, s * .5); r.fillStyle = '#2b3854'; r.fillRect(x - s * .36, 37 - s * .5, s * .72, s * .22); r.fillStyle = '#17181d'; r.fillRect(x - s / 2, 37 + s * .14, s, s * .1); } MIRC.tex.needsUpdate = true;
@@ -184,7 +190,7 @@ function mini() { G.miniT = T + .22; const m = MINI.ctx, all = standings(); m.fi
 const racingNow = () => G.phase === 'race' || G.phase === 'finish' || G.phase === 'poster';
 function updAudio(dt) { if (!A.ctx) return; const on = G.engine && G.phase !== 'poster', f = 38 + 132 * P.rpm + (P.boost > 0 ? 14 : 0), load = IN.thr ? 1 : .25;
   [1, .5, 1.503].forEach((k, i) => aset(A.engO[i].frequency, f * k, .05)); aset(A.engF.frequency, 240 + 2300 * P.rpm * (.35 + .65 * load), .08); aset(A.engG.gain, on ? .05 + .07 * load + .03 * P.rpm : 0, .08); aset(A.lumpG.gain, on && P.vf < 2 ? .02 : 0, .2);
-  const v = on ? P.vf / CFG.VMAX : 0; aset(A.windG.gain, clamp(v * v * .075 * (1 - .4 * P.draft), 0, .1), .2); aset(A.windF.frequency, 380 + 900 * v, .2); aset(A.sqG.gain, on ? clamp((P.slip - 2.2) / 9, 0, 1) * .07 * (1 - .5 * WX.rain) : 0, .05); aset(A.sqF.frequency, 1250 + P.slip * 45, .05);
-  aset(A.rainG.gain, on ? WX.rain * .05 + UG.uSplash.value * .03 : 0, .3); aset(A.roofG.gain, on ? WX.rain * .06 : 0, .3); aset(A.radG.gain, RADIO.on && on ? .5 : 0, .4); radio();
+  const v = on && !G.pause ? P.vf / CFG.VMAX : 0; aset(A.windG.gain, clamp(v * v * .075 * (1 - .4 * P.draft), 0, .1), .2); aset(A.windF.frequency, 380 + 900 * v, .2); aset(A.sqG.gain, on ? clamp((P.slip - 2.2) / 9, 0, 1) * .07 * (1 - .5 * WX.rain) : 0, .05); aset(A.sqF.frequency, 1250 + P.slip * 45, .05);
+  aset(A.rainG.gain, on ? WX.rain * .05 + UG.uSplash.value * .03 : 0, .3); aset(A.roofG.gain, on ? WX.rain * .06 : 0, .3); aset(A.radG.gain, RADIO.on && on && STATIONS[RADIO.st].ch ? .5 : 0, .4); radio();
   A.riv.forEach((vv, k) => { const e = A.near && A.near[k]; if (!e || !on || e[0] > 70) { aset(vv.g.gain, 0, .1); return; } const r = e[1], fr = (34 + r.v * 3.1) * (1 + clamp((r.v - P.vf) * (r.prog > P.prog ? -1 : 1) * .004, -.08, .08)); aset(vv.o.frequency, fr, .08); aset(vv.o2.frequency, fr / 2, .08); aset(vv.g.gain, .09 * (1 - e[0] / 70), .1); setPan(vv.p, r.g.getWorldPosition(_v)); });
   setPan(A.radP, rig.localToWorld(_v.set(CFG.CX, -.3, -.6))); updateListener(); }
