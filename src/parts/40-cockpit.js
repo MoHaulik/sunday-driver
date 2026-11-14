@@ -28,9 +28,12 @@ const CX = CFG.CX, mir = x => 2 * CX - x; // the car's centre line, and a point 
   const vent = x => { mesh(at(tor(.034, .0055, 28), x, -.268, -.561, -.1), M.alu); mesh(at(cyl(.031, .031, .004, 24), x, -.268, -.565, Math.PI / 2 - .1), M.black); mesh([-.014, 0, .014].map(y => at(box(.058, .0035, .01), x, -.268 + y, -.56, -.45)), M.soft); };
   vent(.6); vent(.93); mesh(at(sph(.018, 16, 8), CX, -.2, -.82), M.gloss); }
 // ── pillars, header, door tops. Mirrored left to right
-{ const L = [bar(new V(-.345, -.225, -.99), new V(-.285, .335, -.415), .075, .05), bar(new V(-.285, .335, -.415), new V(-.318, .385, .25), .05), bar(new V(-.34, -.24, .25), new V(-.318, .4, .25), .06, .07), at(cyl(.032, .032, 1.24, 14), -.35, -.234, -.36, Math.PI / 2)];
+{ const tube = (a, b, w, d = w) => { const L = a.distanceTo(b), g = new THREE.CylinderGeometry(1, 1, L, 16).scale(w / 2, 1, d / 2), u = new V().subVectors(b, a).normalize(); return g.applyQuaternion(new Qn().setFromUnitVectors(YA, u)).translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2); }; // rounded, like moulded plastic, not sawn timber
+  const k = (a, r = .028) => at(sph(r, 14, 10), a.x, a.y, a.z), A0 = new V(-.345, -.225, -.99), A1 = new V(-.285, .335, -.415), A2 = new V(-.318, .385, .25), B0 = new V(-.34, -.24, .25), B1 = new V(-.318, .4, .25);
+  const L = [tube(A0, A1, .07, .05), tube(A1, A2, .05), tube(B0, B1, .06, .06), k(A1), k(A2, .03), at(cyl(.032, .032, 1.24, 14), -.35, -.234, -.36, Math.PI / 2)], P = [tube(A0.clone().add(new V(.03, 0, .012)), A1.clone().add(new V(.022, -.012, .012)), .009), tube(new V(-.35, -.203, -.98), new V(-.35, -.203, .26), .008)]; // and a hot-pink piping line along the inside
   const R = L.map(g => g.clone().applyMatrix4(new THREE.Matrix4().makeScale(-1, 1, 1)).translate(2 * CX, 0, 0)); R.forEach(g => { const i = g.index.array; for (let k = 0; k < i.length; k += 3) { const t = i[k]; i[k] = i[k + 1]; i[k + 1] = t; } });
-  mesh([...L, ...R, at(box(1.33, .05, .1), CX, .348, -.4)], M.frame); mesh([at(box(.04, .012, .09), -.35, -.208, -.25), at(cyl(.006, .006, .03, 8), -.352, -.2, .12)], M.alu); }
+  mesh([...L, ...R, tube(new V(-.3, .35, -.4), new V(mir(-.3), .35, -.4), .1, .05)], M.frame); mesh([...P, ...P.map(g => { g = g.clone().applyMatrix4(new THREE.Matrix4().makeScale(-1, 1, 1)).translate(2 * CX, 0, 0); const i = g.index.array; for (let q = 0; q < i.length; q += 3) { const t = i[q]; i[q] = i[q + 1]; i[q + 1] = t; } return g; })], cm('#ff4fa3', .5));
+  mesh([at(cyl(.007, .007, .09, 10), -.336, -.2, -.25, Math.PI / 2), at(sph(.009, 10, 8), -.336, -.2, -.205), at(sph(.009, 10, 8), -.336, -.2, -.295), at(cyl(.006, .006, .03, 8), -.352, -.2, .12)], M.alu); }
 
 // ── instruments. Two dials painted once, needles that are real, and a screen between them
 const HUDC = ctex(512, 512), MINI = ctex(512, 288), MIRC = ctex(256, 64);
