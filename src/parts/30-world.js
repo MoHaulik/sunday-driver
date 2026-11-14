@@ -55,17 +55,18 @@ const tileUV = (i, x0 = 0, y0 = 0, x1 = 1, y1 = 1) => { const tx = i % 4, ty = i
   ATL.tex.needsUpdate = true; }
 
 // ── materials
-const WVS = `varying vec3 vC,vN;varying vec2 vUv;varying float vD;void main(){vec4 p=vec4(position,1.);vec3 n=normal;vC=color;
+const WVS = `varying vec3 vC,vN,vW;varying vec2 vUv;varying float vD;void main(){vec4 p=vec4(position,1.);vec3 n=normal;vC=color;
 #ifdef USE_INSTANCING
 p=instanceMatrix*p;n=mat3(instanceMatrix)*n;
 #endif
 #ifdef USE_INSTANCING_COLOR
 vC*=instanceColor;
 #endif
-vN=mat3(modelMatrix)*n;vUv=uv;vec4 mv=modelViewMatrix*p;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const WFS = `uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC;uniform float uFog;varying vec3 vC,vN;varying vec2 vUv;varying float vD;
-void main(){vec3 a=vC;if(vUv.x>=0.)a*=texture2D(map,vUv).rgb;vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d);
-gl_FragColor=vec4(mix(uFogC,a*mix(uShC,uSunC,l),exp(-vD*uFog)),1.);}`;
+vN=mat3(modelMatrix)*n;vUv=uv;vW=(modelMatrix*p).xyz;vec4 mv=modelViewMatrix*p;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
+const WFS = `${LIT}uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC;uniform float uFog,uNight;varying vec3 vC,vN,vW;varying vec2 vUv;varying float vD;
+void main(){vec3 a=vC,tx=vec3(0.);if(vUv.x>=0.){tx=texture2D(map,vUv).rgb;a*=tx;}float wg=step(.4,tx.b-tx.r)*step(.45,fract(sin(dot(floor(vUv*40.),vec2(12.9898,78.233)))*43758.5453))*uNight; // at night, about half the windows are lit (and the blue neon on the signs)
+vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d);
+gl_FragColor=vec4(mix(uFogC,a*(mix(uShC,uSunC,l)+nightLight(vW,n)*uNight)+vec3(1.,.78,.42)*wg,exp(-vD*uFog)),1.);}`;
 const wmat = (o = {}) => new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(ATL.tex) }, vertexShader: WVS, fragmentShader: WFS, vertexColors: true, ...STEN, ...o });
 const WM = wmat(), WM2 = wmat({ side: THREE.DoubleSide });
 const wmesh = (g, m = WM, p = world) => { const o = new THREE.Mesh(g, m); o.renderOrder = RO.world; p.add(o); return o; };
@@ -144,8 +145,8 @@ const PUD = [...Array(34)].map(() => ({ s: rnd(70, TL - 20), lat: rnd(-W + 1.6, 
   for (let r = 0; r < N; r++) for (let k = 0; k < nc - 1; k++) { const a = r * nc + k, b = a + 1, d = a + nc, e = d + 1; idx.push(a, b, d, b, e, d); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aD', new THREE.Float32BufferAttribute(aD, 4)); g.setAttribute('aE', new THREE.Float32BufferAttribute(aE, 2)); g.setIndex(idx);
   wmesh(g, new THREE.ShaderMaterial({ uniforms: UW, ...STEN,
-    vertexShader: `attribute vec4 aD;attribute vec2 aE;varying vec4 vA;varying vec2 vE;varying vec3 vP;varying float vD;void main(){vA=aD;vE=aE;vP=position;vec4 mv=modelViewMatrix*vec4(position,1.);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`,
-    fragmentShader: `${NOISE}${SKY}uniform vec3 uShC,uEye;uniform float uFog,uWet;varying vec4 vA;varying vec2 vE;varying vec3 vP;varying float vD;
+    vertexShader: `attribute vec4 aD;attribute vec2 aE;varying vec4 vA;varying vec2 vE;varying vec3 vP,vW;varying float vD;void main(){vA=aD;vE=aE;vP=position;vW=(modelMatrix*vec4(position,1.)).xyz;vec4 mv=modelViewMatrix*vec4(position,1.);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader: `${NOISE}${SKY}${LIT}uniform vec3 uShC,uEye;uniform float uFog,uWet;varying vec4 vA;varying vec2 vE;varying vec3 vP,vW;varying float vD;
     void main(){float lat=vA.x,s=vA.y,al=abs(lat),W=${W.toFixed(2)},TL=${TL.toFixed(3)};vec3 c;float n1=vn(vP.xz*.33),n2=vn(vP.xz*2.7);
       float leaf=vn(vP.xz*.5)*.6+vn(vP.xz*1.6+5.)*.4,sh=smoothstep(0.,.07,vA.w*1.2-leaf)*min(uSunI,1.); // shade under trees and beside houses, dappled
       if(al<W+.24){c=mix(vec3(.79,.73,.88),vec3(.70,.64,.82),step(.5,n1*.7+n2*.3));
@@ -157,7 +158,7 @@ const PUD = [...Array(34)].map(() => ({ s: rnd(70, TL - 20), lat: rnd(-W + 1.6, 
           c=mix(c,c*.8,smoothstep(.36,.44,pd)*(1.-pm));c=mix(c,c*.6+rs*.3,uWet*.75*(1.-pm));c=mix(c,mix(c*.45,rs,fr),pm);sh*=1.-pm*.75;}}
       else{vec3 pave=vec3(.99,.87,.94)*(.94+.06*n2);vec2 g=abs(fract(vec2(s,al-W)/1.1)-.5);pave*=1.-.1*smoothstep(.44,.48,max(g.x,g.y));pave=mix(pave,vec3(.95,.94,.9),smoothstep(W+.6,W+.34,al));
         c=mix(mix(vec3(.56,.91,.35),vec3(.44,.86,.42),step(.5,n1*.6+n2*.4)),pave,vE.x);}
-      c*=mix(uSunC,uShC,sh);gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog)),1.);}` })).frustumCulled = false; }
+      c*=mix(uSunC,uShC,sh)+nightLight(vW,vec3(0.,1.,0.))*uNight;gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog)),1.);}` })).frustumCulled = false; }
 
 // ── sea and sky
 wmesh(new THREE.PlaneGeometry(4200, 4200).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: UW, ...STEN,

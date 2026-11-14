@@ -53,8 +53,8 @@ function townsville(W2, H2, far) { const A = ctex(W2, H2), B = ctex(W2 / 2, H2 /
 const SKYL = [[830, 210, 95, 1.5, .82], [990, 230, 105, 2, .5]].map(([R, H, Y, rep, k], far) => { const [map, lit] = townsville(far ? 2048 : 4096, 512, far), cx = 60, cz = 120, a0 = -1.75, a1 = 1.75, g = new THREE.CylinderGeometry(R, R, H, 64, 1, true, Math.PI + a0, a1 - a0).translate(cx, Y, cz), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * rep);
   const o = wmesh(g, new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(map), lit: u(lit), uGlow: u(0), uK: u(k) }, side: THREE.BackSide, ...STEN,
     vertexShader: `varying vec2 vUv;varying float vD;void main(){vUv=uv;vec4 mv=modelViewMatrix*vec4(position,1.);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`,
-    fragmentShader: `uniform sampler2D map,lit;uniform vec3 uFogC,uSunC;uniform float uFog,uGlow,uK;varying vec2 vUv;varying float vD;void main(){vec4 t=texture2D(map,vUv);if(t.a<.5)discard;
-      vec3 c=t.rgb*mix(vec3(1.),uSunC,.3);c=mix(c,vec3(1.,.86,.45),texture2D(lit,vUv).r*uGlow);gl_FragColor=vec4(mix(uFogC,c,uK*exp(-vD*uFog*.35)+.15*uGlow*uK),1.);}` }));
+    fragmentShader: `uniform sampler2D map,lit;uniform vec3 uFogC,uSunC;uniform float uFog,uGlow,uK,uNight;varying vec2 vUv;varying float vD;void main(){vec4 t=texture2D(map,vUv);if(t.a<.5)discard;
+      vec3 c=t.rgb*mix(vec3(1.),uSunC,.3);c=mix(c,t.rgb*vec3(.3,.28,.55),uNight*.85);c=mix(c,vec3(1.,.84,.5),texture2D(lit,vUv).r*min(uGlow,1.)*.85);gl_FragColor=vec4(mix(uFogC,c,uK*exp(-vD*uFog*.35)+.15*uGlow*uK),1.);}` }));
   o.renderOrder = RO.world - 1 + far * -.5; o.frustumCulled = false; return o; });
 
 // ── hero streaks behind the rivals when they are flat out, and speed lines past your own windows when you boost
@@ -72,7 +72,7 @@ function heartShow() { PPG.win = 0; FLY.forEach(f => { f.rb.pts.length = 0; f.rb
 
 function ppg(dt, sdt) {
   // the sky's mood paints the city: lit windows at golden hour, the sunburst stronger as the sun drops
-  const s = WX.w[0] + WX.w[1] + WX.w[2]; SKYL.forEach(o => o.material.uniforms.uGlow.value = WX.w[2] / s);
+  const s = WX.w[0] + WX.w[1] + WX.w[2]; SKYL.forEach(o => o.material.uniforms.uGlow.value = (WX.w[2] + (WX.w[3] || 0) * 1.3) / s);
   // streaks behind rivals going flat out
   for (const [k, r] of RIV.entries()) { const t = RTR[k], fast = s01((r.v - 33) / 9) * (G.phase === 'race' || G.phase === 'finish' || G.phase === 'poster' ? 1 : 0); t.acc += sdt; if (t.acc > .045) { t.acc = 0; t.rb.push(_v.copy(r.g.position)); }
     t.rb.m.material.uniforms.uA.value += (fast * .9 - t.rb.m.material.uniforms.uA.value) * damp(dt, .25); t.rb.m.visible = t.rb.m.material.uniforms.uA.value > .01; if (t.rb.m.visible) t.rb.build(YA, .78); }

@@ -24,7 +24,7 @@ function updHands(dt) {
     // the handbrake: take the lever and lift
     const dh = h.p.distanceTo(HB.p); if (!h.on && !h.hb && dh < CFG.HB.grab && HB.hold < 0) { h.hb = true; HB.hold = h.i; sfx('grab'); } else if (h.hb && dh > CFG.HB.drop) { h.hb = false; HB.hold = -1; }
     if (h.hb) hbHand = h;
-    for (const t of h.tips) { if (!h.on && t.distanceTo(startG.position) < .04) press = true; if (!h.on && t.distanceTo(SCRP) < .07) tune = true; const r = _v2.subVectors(t, WH.c), a = r.dot(WH.a); if (Math.abs(a) < .06 && Math.sqrt(Math.max(0, r.lengthSq() - a * a)) < .062) IN.honk = true; }
+    for (const t of h.tips) { if (t.distanceTo(startG.position) < .04) { press = true; h.on = false; } /* START always answers, even from a hand that was on the wheel */ if (!h.on && t.distanceTo(SCRP) < .07) tune = true; const r = _v2.subVectors(t, WH.c), a = r.dot(WH.a); if (Math.abs(a) < .06 && Math.sqrt(Math.max(0, r.lengthSq() - a * a)) < .062) IN.honk = true; }
     { const r = _v2.subVectors(h.p, WH.c), a = r.dot(WH.a); if (!h.on && Math.abs(a) < .08 && Math.sqrt(Math.max(0, r.lengthSq() - a * a)) < .07) IN.honk = true; } } // or slam the middle with your palm
   if (HB.hold >= 0 && !PH[HB.hold].hb) HB.hold = -1;
   if (SIM && !DBG.hand) { // keys: arrows or WASD to steer, space = handbrake, enter = the start button, H = horn
@@ -91,7 +91,7 @@ function grid() { // the start: six cars in two files ahead of you, and you at t
   const o = trackAt(-CFG.GRID * 7, -1.9, P.o); Object.assign(P, { x: o.x, z: o.z, psi: o.psi, vx: 0, vz: 0, vf: 0, v: 0, yaw: 0, prog: -CFG.GRID * 7, i: o.i, s: 0, boost: 0, charge: 0, draft: 0, lapT: 0, best: 0, done: 0, shake: 0, stuck: 0, clean: 0 }); locate(P, true); P.prog = -CFG.GRID * 7; updRivals(0, false); }
 
 // ═══════════════════════════ THE RACE: phases, laps, weather, and the three screens ═══════════════════════════
-const G = { slow: 0, earn: { laps: 0 }, shown: 0, phase: 'poster', t: 0, pt: 0, time: 0, lights: 0, go: 0, fin: [], place: 0, pos: 7, lap: 1, msg: '', msgT: 0, engine: 0, reveal: false, clipZ: 99, hudT: 0, miniT: 0, tipHB: false, again: false, pause: 0, pauseT: 0 };
+const G = { level: 1, slow: 0, earn: { laps: 0 }, shown: 0, phase: 'poster', t: 0, pt: 0, time: 0, lights: 0, go: 0, fin: [], place: 0, pos: 7, lap: 1, msg: '', msgT: 0, engine: 0, reveal: false, clipZ: 99, hudT: 0, miniT: 0, tipHB: false, again: false, pause: 0, pauseT: 0 };
 function setPhase(p) { G.phase = p; G.t = G.pt = 0; }
 function startCount() { setPhase('count'); G.lights = 0; G.go = 5.4 + rand(.6, 1.5); }
 const hit = a => G.pt < a && G.t >= a, say = (m, d = 2) => { G.msg = m; G.msgT = T + d; }, fmt = t => `${t / 60 | 0}:${(t % 60).toFixed(1).padStart(4, '0')}`;
@@ -125,14 +125,15 @@ function flow(dt) {
   else if (ph === 'race') { G.time += dt; P.lapT += dt; drive(dt); updRivals(dt, true); if (G.t > 2) G.lights = 0;
     const lap = clamp(Math.floor(P.prog / TL) + 1, 1, CFG.LAPS);
     if (lap !== G.lap) { G.lap = lap; if (!P.best || P.lapT < P.best) P.best = P.lapT; P.lapT = 0; sfx('lap'); const lc = 15 + (8 - G.pos) * 5; SAVE.coins += lc; G.earn.laps += lc; save(); sfx('coin', 1, 0); say(`${lap === CFG.LAPS ? 'FINAL LAP' : 'LAP ' + lap} · +${lc}¢`, 2.2); }
-    const lf = P.prog / TL; WX.t = lf > 1.04 && lf < 1.86 ? [0, 1, 0] : lf >= 1.86 ? [0, 0, 1] : [1, 0, 0]; if (hit(0.001) || (lf > 1.04 && lf < 1.045 && T > G.msgT)) lf > 1 && say('RAIN', 2); // lap two: it rains. lap three: the sun comes back low and gold
+    const lf = P.prog / TL; if (G.level === 2) { const k = s01((lf - .55) / .7); WX.sink = s01(lf / .9); WX.t = [0, 0, 1 - k, k]; if (lf > .55 && lf < .56 && T > G.msgT) say('NIGHT FALLS · LIGHTS ON', 2.4); } // level two: lap one the sun goes down, then it is night
+    else { WX.sink = 0; WX.t = lf > 1.04 && lf < 1.86 ? [0, 1, 0] : lf >= 1.86 ? [0, 0, 1] : [1, 0, 0]; if (hit(0.001) || (lf > 1.04 && lf < 1.045 && T > G.msgT)) lf > 1 && say('RAIN', 2); } // lap two: it rains. lap three: the sun comes back low and gold
     if (!IN.everHeld && G.t > 2.5 && T > G.msgT) say('GRAB THE WHEEL', 1.5);
     if (!G.tipHB && P.prog > 0 && md(P.i, atTPc[10]) < 6) { G.tipHB = true; say('HAIRPIN · PULL THE HANDBRAKE', 3); } HB.btn.material.emissiveIntensity = G.tipHB && T < G.msgT + 2 && !G.usedHB ? 1.5 + Math.sin(T * 9) : 0; if (IN.hb) G.usedHB = true;
     if (P.draft > .6 && T > G.msgT) say('SLIPSTREAM', .4);
     const wrong = Math.sin(P.psi) * TX[P.i] - Math.cos(P.psi) * TZ[P.i] < -.2; P.stuck = (wrong || (P.vf < 2.5 && IN.thr && G.t > 3)) ? P.stuck + dt : 0; if (wrong && T > G.msgT) say('WRONG WAY', .5);
     if (P.stuck > 2.4) { const o = trackAt(P.s, clamp(P.lat, -3, 3), P.o); Object.assign(P, { x: o.x, z: o.z, psi: o.psi, vx: Math.sin(o.psi) * 9, vz: -Math.cos(o.psi) * 9, yaw: 0, stuck: 0 }); UG.uSplash.value = 1; WS.want = 2; sfx('whoosh', 1); } // lost? a wipe of the blades and you are back on the road
     for (const r of RIV) if (!r.done && r.prog >= CFG.LAPS * TL) r.done = G.fin.push(r);
-    if (P.prog >= CFG.LAPS * TL) { P.done = G.fin.push(P); G.place = P.done; setPhase('finish'); IN.auto = true; ceremonyStart(); if (!P.best || P.lapT < P.best) P.best = P.lapT; WX.t = [0, 0, 1]; G.again = false; } }
+    if (P.prog >= CFG.LAPS * TL) { P.done = G.fin.push(P); G.place = P.done; setPhase('finish'); IN.auto = true; ceremonyStart(); if (!P.best || P.lapT < P.best) P.best = P.lapT; WX.t = G.level === 2 ? [0, 0, 0, 1] : [0, 0, 1]; G.again = false; } }
   else if (ph === 'finish') { autopilot(.55); drive(dt); updRivals(dt, true); for (const r of RIV) if (!r.done && r.prog >= CFG.LAPS * TL) r.done = G.fin.push(r);
     if (G.place <= 3 && G.t < 5 && Math.random() < dt * 60) parts.emit(_v.set(P.x + Math.sin(P.psi) * rand(6, 22) + rand(-5, 5), P.y + rand(3, 6), P.z - Math.cos(P.psi) * rand(6, 22) + rand(-5, 5)), _v2.set(rand(-1, 1), rand(-1, 1), rand(-1, 1)), _c.set(pick(['#ff3b2f', '#ffd23f', '#35cfa8', '#3f7bff', '#ffffff'])), { life: rand(1.5, 2.5), size: .16, grav: 1.5 });
     ceremony(); if (G.t > 6.3) G.again = true; if (G.again && IN.press) restart(); }
@@ -141,7 +142,7 @@ function flow(dt) {
   const all = standings(); G.pos = all.indexOf(P) + 1;
 }
 const atTPc = TP.map((p, k) => atTP(k));
-function restart() { sfx('click'); G.fin.length = 0; G.place = 0; G.lap = 1; G.tipHB = G.usedHB = false; WX.t = [1, 0, 0]; grid(); openGlass(false); UG.uDust.value = 1; WS.a = WP.a0; setPhase('crank'); G.t = G.pt = 1.2; G.engine = 1; }
+function restart() { sfx('click'); G.level = G.level === 1 ? 2 : 1; WX.sink = 0; say(G.level === 2 ? 'LEVEL 2 · NIGHT DRIVE' : 'LEVEL 1 · SUNDAY', 3); G.fin.length = 0; G.place = 0; G.lap = 1; G.tipHB = G.usedHB = false; WX.t = [1, 0, 0]; grid(); openGlass(false); UG.uDust.value = 1; WS.a = WP.a0; setPhase('crank'); G.t = G.pt = 1.2; G.engine = 1; }
 function seat(hp, fwd) { rig.position.set(hp.x, hp.y - .015, hp.z); rig.rotation.y = Math.atan2(-fwd.x, -fwd.z); rig.updateMatrixWorld(true); } // the cockpit goes where you are: your eyes are its origin
 
 // ── put the world where it belongs. The car never moves in your room; everything else does

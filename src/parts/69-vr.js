@@ -136,3 +136,31 @@ function skylife(dt) { const S = SKYLIFE;
   let n = 0; for (const f of S.FLOCK) { const d = Math.hypot(f.c.x - P.x, f.c.z - P.z); if (f.scat <= 0 && (d < 28 && P.vf > 8 || d < 60 && IN.honk)) { f.scat = 9; f.dir.set(f.c.x - P.x, 0, f.c.z - P.z).normalize(); sfx('whoosh', .3); } if (f.scat > 0) f.scat -= dt; const k = f.scat > 0 ? s01((9 - f.scat) / 1.5) * (f.scat > 2 ? 1 : f.scat / 2) : 0;
     for (const b of f.b) { b.a += dt * b.sp * (1 + k * 2); const fl = Math.sin(T * (11 + k * 8) + b.ph) * .35, x = f.c.x + Math.cos(b.a) * b.r + f.dir.x * k * 60, y = f.c.y + b.h + Math.sin(b.a * 2) + k * 30, z = f.c.z + Math.sin(b.a) * b.r + f.dir.z * k * 60, tx = -Math.sin(b.a) * .5, tz = Math.cos(b.a) * .5;
       const j = n++ * 12; S.bp.set([x - tz * 1.4, y + fl, z + tx * 1.4, x, y, z, x, y, z, x + tz * 1.4, y + fl, z - tx * 1.4], j); } } S.birds.geometry.attributes.position.needsUpdate = true; }
+
+// ═══════════════════════════ NIGHT (level two): neon street lamps, headlights that really light the road, beams in the air, tail lights, a glow in the cabin ═══════════════════════════
+const LAMPS2 = [], LCOL = [col('#ff5fc8'), col('#4fe0ff')];
+{ const b = new MB(), ink = col('#2a1d4a'); for (let i = 3, k = 0; i < N; i += 14, k++) { const side = k % 2 ? 1 : -1, lat = (W + (ZONE[i] === 1 ? .3 : 1.2)) * side, x = SX[i] - TZ[i] * lat, z = SZ[i] + TX[i] * lat, y = SY[i], ix2 = TZ[i] * side, iz2 = -TX[i] * side;
+    const top = new V(x, y + 5.6, z), head = new V(x + ix2 * 1.5, y + 5.5, z + iz2 * 1.5); b.add(bar(new V(x, y, z), top, .16), new THREE.Matrix4(), ink).add(bar(top, head, .1), new THREE.Matrix4(), ink).add(new THREE.SphereGeometry(.28, 10, 6).scale(1.3, .6, 1.3), M4(head.x, head.y - .1, head.z), col('#f6f0ff'));
+    LAMPS2.push({ p: new V(head.x, head.y - .35, head.z), c: LCOL[k % 2], fl: k % 7 === 3 }); } // one in seven is a dodgy neon that flickers
+  wmesh(b.geo()).frustumCulled = false; }
+const GLOWV = `attribute vec3 aC;attribute float aS;varying vec3 vC;void main(){vC=aC;vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=aS*900./max(-mv.z,.3);}`;
+const GLOWF = `uniform float uNight;varying vec3 vC;void main(){float d=length(gl_PointCoord-.5)*2.;gl_FragColor=vec4(vC*(smoothstep(1.,0.,d)*.5+smoothstep(.3,.1,d))*uNight,0.);}`;
+const glowPts = (n, f) => { const g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), cl = new Float32Array(n * 3), sz = new Float32Array(n); f(pos, cl, sz); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aC', new THREE.BufferAttribute(cl, 3)); g.setAttribute('aS', new THREE.BufferAttribute(sz, 1));
+  const m = new THREE.Points(g, new THREE.ShaderMaterial({ uniforms: { uNight: UW.uNight }, vertexShader: GLOWV, fragmentShader: GLOWF, ...ADD, ...STEN })); m.frustumCulled = false; m.renderOrder = RO.fx; world.add(m); return m; };
+const LGLOW = glowPts(LAMPS2.length, (p, c, s) => LAMPS2.forEach((l, k) => { p.set([l.p.x, l.p.y, l.p.z], k * 3); c.set([l.c.r, l.c.g, l.c.b], k * 3); s[k] = 2.4; }));
+const CGLOW = glowPts(RIV.length * 4, (p, c, s) => { for (let k = 0; k < RIV.length * 4; k++) { const tail = k % 4 > 1; c.set(tail ? [1, .1, .15] : [1, .95, .8], k * 3); s[k] = tail ? .9 : 1.3; } });
+const BEAMG = new THREE.ConeGeometry(3.4, 18, 24, 1, true).rotateX(Math.PI / 2).rotateX(-.05).translate(0, .66, -11), BEAMM = new THREE.ShaderMaterial({ uniforms: { uNight: UW.uNight }, ...ADD, ...STEN, side: THREE.DoubleSide,
+  vertexShader: `varying float vT,vE;void main(){vT=uv.y;vec4 mv=modelViewMatrix*vec4(position,1.);vE=abs(dot(normalize(normalMatrix*normal),normalize(-mv.xyz)));gl_Position=projectionMatrix*mv;}`,
+  fragmentShader: `uniform float uNight;varying float vT,vE;void main(){gl_FragColor=vec4(vec3(1.,.92,.75)*pow(vT,1.7)*pow(vE,1.4)*.34*uNight,0.);}` }); // light in the air: brightest at the lamp, gone by the far end
+RIV.forEach(r => { const m = new THREE.Mesh(BEAMG, BEAMM); m.renderOrder = RO.fx; m.frustumCulled = false; r.g.add(m); });
+const MYBEAM = new THREE.Group(); { const m = new THREE.Mesh(BEAMG, BEAMM); m.renderOrder = RO.fx; m.frustumCulled = false; MYBEAM.add(m); world.add(MYBEAM); }
+const DASHL = [new THREE.PointLight('#ff5fd0', 0, 1.1), new THREE.PointLight('#40e0ff', 0, .9)]; DASHL[0].position.set(CX, -.06, -.36); DASHL[1].position.set(CX, -.52, -.3); DASHL.forEach(l => cab.add(l)); // neon in the cabin: pink from the dash, cyan from the footwell
+const LSORT = LAMPS2.map((l, k) => k);
+function night(dt) { const nt = UW.uNight.value; DASHL[0].intensity = nt * 1.3; DASHL[1].intensity = nt * .9; MYBEAM.visible = nt > .01; if (nt < .01) return;
+  const HL = UW.uHL.value, HD = UW.uHD.value, M = world.matrixWorld; let k = 0;
+  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, ps = c === P ? P.psi : o.psi, fx = Math.sin(ps), fz = -Math.cos(ps); _v.set(o.x + fx * 2.1, (o.y || 0) + .7, o.z + fz * 2.1).applyMatrix4(M); _v2.set(fx, -.09, fz).transformDirection(M); HL[k].set(_v.x, _v.y, _v.z, 1); HD[k].set(_v2.x, _v2.y, _v2.z, 0); k++; }
+  MYBEAM.position.set(P.x, P.y, P.z); MYBEAM.rotation.set(0, -P.psi, 0);
+  LSORT.sort((a, b) => (LAMPS2[a].p.x - P.x) ** 2 + (LAMPS2[a].p.z - P.z) ** 2 - (LAMPS2[b].p.x - P.x) ** 2 - (LAMPS2[b].p.z - P.z) ** 2); // the eight lamps nearest you light the scene
+  for (let i = 0; i < 8; i++) { const l = LAMPS2[LSORT[i]], f = l.fl ? (Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1) : 1; _v.copy(l.p).applyMatrix4(M); UW.uLP.value[i].set(_v.x, _v.y, _v.z, f); UW.uLC.value[i].set(l.c.r, l.c.g, l.c.b); }
+  const lc = LGLOW.geometry.attributes.aC; LAMPS2.forEach((l, j) => { if (l.fl) { const f = Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1; lc.setXYZ(j, l.c.r * f, l.c.g * f, l.c.b * f); } }); lc.needsUpdate = true;
+  const cp = CGLOW.geometry.attributes.position; RIV.forEach((r, j) => { r.g.updateMatrix(); [[-.55, .63, -1.97], [.55, .63, -1.97], [-.53, .66, 1.97], [.53, .66, 1.97]].forEach((q, n) => { _v.set(...q).applyMatrix4(r.g.matrix); cp.setXYZ(j * 4 + n, _v.x, _v.y, _v.z); }); }); cp.needsUpdate = true; }

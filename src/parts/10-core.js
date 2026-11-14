@@ -64,12 +64,13 @@ const CLD = (() => { const h = k => { const x = Math.sin(k * 127.1 + 311.7) * 43
     const cen = lob.reduce((s, [d]) => s.add(d), new V()).normalize(), rad = Math.max(...lob.map(([d, r]) => Math.acos(Math.min(1, d.dot(cen))) + r));
     C.push([cen.x, cen.y, cen.z, Math.cos(rad * 1.25 + .01)], [Math.sin(e0), 0, R, 0]); lob.forEach(([d, r]) => L.push([d.x, d.y, d.z, r])); n++; }
   const f = a => a.map(v => `vec4(${v.map(x => x.toFixed(4)).join(',')})`).join(','); return `const int NC=${n},NL=${NL};const vec4 CC[${n * 2}]=vec4[${n * 2}](${f(C)});const vec4 CL[${n * NL}]=vec4[${n * NL}](${f(L)});`; })();
-const SKY = `uniform vec3 uSunT,uSunC,uZen,uHor,uCl,uCs,uFogC;uniform float uCov,uSunI,uTime;${CLD}
+const SKY = `uniform vec3 uSunT,uSunC,uZen,uHor,uCl,uCs,uFogC;uniform float uCov,uSunI,uTime,uNight;${CLD}
 vec2 cg(int i,vec3 e,float k){float a=-1.,b=-1.;for(int j=0;j<NL;j++){vec4 l=CL[i*NL+j];float r=l.w*k,g=(r*r-2.*(1.-dot(e,l.xyz)))/(2.*r);b=max(b,min(a,g));a=max(a,g);}return vec2(a,b);} // the biggest and second-biggest lobe: >0 inside, in radians from the edge
 vec3 sky(vec3 d,int o){float h=max(d.y,0.),ca=cos(uTime*.004),sa=sin(uTime*.004);vec3 c=mix(uHor,uZen,smoothstep(0.,.62,pow(h,.75)));c=mix(c,uHor*1.06+.04,(1.-smoothstep(0.,.07,h))*.6); // a bright band on the horizon
-  float sd=dot(d,uSunT),sun=smoothstep(.99905,.9992,sd);c+=uSunC*(pow(max(sd,0.),28.)*.25+pow(max(sd,0.),5.)*.08)*uSunI;c=mix(c,mix(c,vec3(.11,.07,.2),.55),smoothstep(.99875,.9989,sd)*(1.-sun)*uSunI);c=mix(c,uSunC*1.25+.1,sun*uSunI);
-  if(o>0){vec3 ta=normalize(cross(uSunT,vec3(0.,1.,.001))),tb=cross(uSunT,ta);float ry=step(.5,fract(atan(dot(d,tb),dot(d,ta))*2.546+uTime*.012));c=mix(c,c*1.04+uSunC*.1,ry*smoothstep(.5,.97,sd)*(1.-smoothstep(.998,.9989,sd))*min(uSunI,1.));} // the Townsville sunburst: sixteen slow rays round the sun
-  if(o>0&&h>.15){vec2 q=d.xz/(1.+d.y)*34.,id=floor(q),f=fract(q)-.5;float r=h1(id);if(r>.93){vec2 p=f-(vec2(h1(id+4.1),h1(id+8.3))-.5)*.5;float s=(1.-smoothstep(0.,.06,abs(p.x)*abs(p.y)*90.+length(p)*2.2))*(.55+.45*sin(uTime*2.+r*40.));c=mix(c,vec3(1.,.93,.98),s*smoothstep(.15,.4,h)*.8);}} // sparkles
+  float sd=dot(d,uSunT),r0=mix(.99905,.9958,uNight),sun=smoothstep(r0,r0+.00015+.0003*uNight,sd),mi=max(uSunI,uNight);c+=uSunC*(pow(max(sd,0.),28.)*.25+pow(max(sd,0.),5.)*.08)*uSunI+vec3(.45,.5,1.)*(pow(max(sd,0.),90.)*.35+pow(max(sd,0.),12.)*.1)*uNight; // night: a big moon with a cold halo
+  c=mix(c,mix(c,vec3(.11,.07,.2),.55),smoothstep(r0-.0003-.0004*uNight,r0-.00015-.0002*uNight,sd)*(1.-sun)*mi);vec3 mp=(d-uSunT*sd)*260.;c=mix(c,mix(uSunC*1.25+.1,vec3(.96,.94,1.)*(1.-.22*smoothstep(.45,.75,vn(mp.xy*1.3+mp.z))-.1*vn(mp.xy*4.+mp.z)),uNight),sun*mi);
+  if(o>0){vec3 ta=normalize(cross(uSunT,vec3(0.,1.,.001))),tb=cross(uSunT,ta);float ry=step(.5,fract(atan(dot(d,tb),dot(d,ta))*2.546+uTime*.012));c=mix(c,c*1.04+uSunC*.1,ry*smoothstep(.5,.97,sd)*(1.-smoothstep(.998,.9989,sd))*min(uSunI,1.)*(1.-uNight));} // the Townsville sunburst: sixteen slow rays round the sun
+  if(o>0&&h>.15){vec2 q=d.xz/(1.+d.y)*34.,id=floor(q),f=fract(q)-.5;float r=h1(id);if(r>.93-.2*uNight){vec2 p=f-(vec2(h1(id+4.1),h1(id+8.3))-.5)*.5;float s=(1.-smoothstep(0.,.06,abs(p.x)*abs(p.y)*90.+length(p)*2.2))*(.55+.45*sin(uTime*2.+r*40.));c=mix(c,vec3(1.,.93,.98),s*smoothstep(.15-.12*uNight,.4-.3*uNight,h)*(.8+.2*uNight));}} // sparkles
   vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=vec3(uSunT.x*ca-uSunT.z*sa,uSunT.y,uSunT.x*sa+uSunT.z*ca);float k=1.+(.5-uCov)*.8,lw=.0045;vec3 ic=mix(uCs,vec3(.11,.07,.2),.75),cs=mix(uCs,uCl,.25);
   for(int i=0;i<NC;i++){if(dot(e,CC[i*2].xyz)<CC[i*2].w-(k-1.)*.03)continue;vec2 g=cg(i,e,k);float yb=e.y-CC[i*2+1].x,G=min(g.x,yb);if(G<-lw)continue; // back to front: each cloud paints over the last, outline and all
     float R=CC[i*2+1].z,lit=1.;if(o>0){vec3 s2=normalize(sh-e*dot(sh,e)+vec3(0.,.0001,0.)),q=normalize(e-s2*R*.22);vec2 g2=cg(i,q,k);lit=smoothstep(-.0005,.0005,min(g2.x,q.y-CC[i*2+1].x));} // cel shadow: where a step away from the sun leaves the cloud
@@ -78,20 +79,24 @@ vec3 sky(vec3 d,int o){float h=max(d.y,0.),ca=cos(uTime*.004),sa=sin(uTime*.004)
     c=mix(c,mix(cc,ic,max(1.-smoothstep(lw*.3,lw*.45,G),cr)),smoothstep(-lw*.75,-lw*.6,G));} // the stroke sits across the edge; outside it, the sky is left alone
   return mix(uFogC,c,smoothstep(-.02,.03,d.y));}`;
 const u = v => ({ value: v }), col = h => new C(h);
+// night light, in scene space: seven pairs of headlights (cone, soft edge, hot centre) and the eight street lamps nearest you
+const LIT = `uniform vec4 uHL[7],uHD[7],uLP[8];uniform vec3 uLC[8];
+vec3 nightLight(vec3 w,vec3 n){vec3 s=vec3(0.);for(int i=0;i<7;i++){vec3 L=w-uHL[i].xyz;float d=length(L)+.01;vec3 l=L/d;float k=dot(l,uHD[i].xyz),cn=smoothstep(.8,.92,k)*.5+smoothstep(.93,.99,k)*.7;s+=vec3(1.,.93,.8)*cn*uHL[i].w*(max(dot(n,-l),0.)*.7+.3)*30./(9.+d*d);}
+  for(int i=0;i<8;i++){vec3 L=uLP[i].xyz-w;float d=length(L)+.01;s+=uLC[i]*uLP[i].w*(max(dot(n,L/d),0.)*.75+.25)*11./(5.+d*d*1.4);}return s;}`;
 const UW = { uSun: u(new V(0, 1, 0)), uSunT: u(new V(0, 1, 0)), uSunC: u(col('#fff')), uShC: u(col('#fff')), uFogC: u(col('#fff')), uZen: u(col('#fff')), uHor: u(col('#fff')), uCl: u(col('#fff')), uCs: u(col('#fff')), uSeaA: u(col('#fff')), uSeaB: u(col('#fff')),
-  uFog: u(.0016), uCov: u(.5), uSunI: u(1), uWet: u(0), uTime: u(0), uEye: u(new V()) };
+  uFog: u(.0016), uNight: u(0), uHL: u([...Array(7)].map(() => new THREE.Vector4())), uHD: u([...Array(7)].map(() => new THREE.Vector4())), uLP: u([...Array(8)].map(() => new THREE.Vector4())), uLC: u([...Array(8)].map(() => new V())), uCov: u(.5), uSunI: u(1), uWet: u(0), uTime: u(0), uEye: u(new V()) };
 //           day        rain       golden hour
-const LOOK = { uSunC: ['#fffdf6', '#c6bcdc', '#ffb884'], uShC: ['#b891ea', '#8f84b8', '#a264cc'], uZen: ['#3fc4f7', '#7a6cab', '#7446d2'], uHor: ['#ffd3ec', '#cbbbe0', '#ff9cc6'], uCl: ['#ffffff', '#e0d6ee', '#ffe3c4'], uCs: ['#ffbfe2', '#a797c8', '#ff8cba'],
-  uFogC: ['#ffdcef', '#c6b6dc', '#ffaecb'], uSeaA: ['#45e3d6', '#8088bc', '#ff98ac'], uSeaB: ['#2f93f2', '#5c5ea0', '#7a4cc4'] }, LOOKN = { uFog: [.0016, .0048, .0021], uCov: [.5, .16, .46], uSunI: [1, 0, 1.25], uWet: [0, 1, .2] };
+const LOOK = { uSunC: ['#fffdf6', '#c6bcdc', '#ffb884', '#5163b4'], uShC: ['#b891ea', '#8f84b8', '#a264cc', '#17153f'], uZen: ['#3fc4f7', '#7a6cab', '#7446d2', '#0b0930'], uHor: ['#ffd3ec', '#cbbbe0', '#ff9cc6', '#3d2a86'], uCl: ['#ffffff', '#e0d6ee', '#ffe3c4', '#9d93d8'], uCs: ['#ffbfe2', '#a797c8', '#ff8cba', '#3b3480'],
+  uFogC: ['#ffdcef', '#c6b6dc', '#ffaecb', '#231a5c'], uSeaA: ['#45e3d6', '#8088bc', '#ff98ac', '#26357e'], uSeaB: ['#2f93f2', '#5c5ea0', '#7a4cc4', '#0c1046'] }, LOOKN = { uFog: [.0016, .0048, .0021, .0026], uCov: [.5, .16, .46, .52], uSunI: [1, 0, 1.25, .5], uWet: [0, 1, .2, .25] };
 for (const k in LOOK) LOOK[k] = LOOK[k].map(col);
-const SUND = [new V(.42, .78, .46).normalize(), new V(.42, .78, .46).normalize(), new V(-.82, .17, .5).normalize()];
-const WX = { w: [1, 0, 0], t: [1, 0, 0], rain: 0 };
+const SUND = [new V(.42, .78, .46).normalize(), new V(.42, .78, .46).normalize(), new V(-.82, .17, .5).normalize(), new V(.85, .26, .45).normalize()]; // day, rain, golden hour, and the moon
+const WX = { w: [1, 0, 0, 0], t: [1, 0, 0], rain: 0, sink: 0 }; // four looks: day, rain, golden hour, night. sink: how far the golden sun has gone down
 const sunL = new THREE.DirectionalLight('#fff', 2.4), hemiL = new THREE.HemisphereLight('#cfe6ff', '#7a4fc0', .5); scene.add(sunL, sunL.target, hemiL); // these light the cockpit, and follow the world's sun as the car turns
 function weather(dt, now) {
-  const w = WX.w; for (let i = 0; i < 3; i++) w[i] = now ? WX.t[i] : w[i] + (WX.t[i] - w[i]) * damp(dt, 2.2); const s = w[0] + w[1] + w[2];
-  for (const k in LOOK) { const c = UW[k].value.setRGB(0, 0, 0); for (let i = 0; i < 3; i++) { const a = LOOK[k][i], f = w[i] / s; c.r += a.r * f; c.g += a.g * f; c.b += a.b * f; } }
-  for (const k in LOOKN) UW[k].value = (LOOKN[k][0] * w[0] + LOOKN[k][1] * w[1] + LOOKN[k][2] * w[2]) / s;
-  UW.uSunT.value.set(0, 0, 0); for (let i = 0; i < 3; i++) UW.uSunT.value.addScaledVector(SUND[i], w[i]); UW.uSunT.value.normalize(); WX.rain = w[1] / s;
+  const w = WX.w, L = w.length; for (let i = 0; i < L; i++) w[i] = now ? WX.t[i] || 0 : w[i] + ((WX.t[i] || 0) - w[i]) * damp(dt, 2.2); const s = w.reduce((a, b) => a + b, 0) || 1; SUND[2].set(-.82, .17 - .25 * WX.sink, .5).normalize();
+  for (const k in LOOK) { const c = UW[k].value.setRGB(0, 0, 0); for (let i = 0; i < L; i++) { const a = LOOK[k][i], f = w[i] / s; c.r += a.r * f; c.g += a.g * f; c.b += a.b * f; } }
+  for (const k in LOOKN) { let v = 0; for (let i = 0; i < L; i++) v += LOOKN[k][i] * w[i]; UW[k].value = v / s; }
+  UW.uSunT.value.set(0, 0, 0); for (let i = 0; i < L; i++) UW.uSunT.value.addScaledVector(SUND[i], w[i]); UW.uSunT.value.normalize(); WX.rain = w[1] / s; UW.uNight.value = w[3] / s;
   UW.uSun.value.copy(UW.uSunT.value).transformDirection(world.matrixWorld); UW.uTime.value = T;
   rig.getWorldPosition(_v); sunL.position.copy(_v).addScaledVector(UW.uSun.value, 4); sunL.target.position.copy(_v); sunL.color.copy(UW.uSunC.value); sunL.intensity = .75 * UW.uSunI.value + .12;
   hemiL.color.copy(UW.uHor.value); hemiL.intensity = .38 + .12 * WX.rain;
