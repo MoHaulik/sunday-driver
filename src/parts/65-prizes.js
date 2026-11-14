@@ -20,12 +20,6 @@ function fling(m, v, gy) { if (!m.on) return false; m.on = false; world.attach(m
 function mirrorBreak(k) { const fx = Math.sin(P.psi), fz = -Math.cos(P.psi), s = k ? 1 : -1; if (!fling(SMIR[k], _v4.set(P.vx * .7 - fz * s * 3, 2.6, P.vz * .7 + fx * s * 3), P.y + .07)) return;
   sfx('crack'); P.shake = Math.min(1, P.shake + .4); if (G.phase === 'race') say(k ? 'RIGHT MIRROR GONE' : 'LEFT MIRROR GONE', 1.6); }
 function rivMirror(r, k) { const o = trackAt(r.prog, r.lat, {}), fx = Math.sin(o.psi), fz = -Math.cos(o.psi), s = k ? 1 : -1; if (fling(r.mir[k], _v4.set(fx * r.v * .7 - fz * s * 3, 2.6, fz * r.v * .7 + fx * s * 3), o.y + .07)) sfx('crack', .6); }
-function sideMirrors() { const hor = '#' + UW.uHor.value.getHexString(), zen = '#' + UW.uZen.value.getHexString();
-  SMIR.forEach((m, k) => { if (!m.on) return; const c = m.c.ctx, s = k ? 1 : -1, vp = 64 - s * 34, g = c.createLinearGradient(0, 0, 0, 80); g.addColorStop(0, zen); g.addColorStop(.36, hor); g.addColorStop(.36, '#9be27a'); g.addColorStop(1, '#7fd65a'); c.fillStyle = g; c.fillRect(0, 0, 128, 80);
-    c.fillStyle = '#c6b8e0'; c.beginPath(); c.moveTo(vp - 3, 29); c.lineTo(vp + 3, 29); c.lineTo(vp + 120, 80); c.lineTo(vp - 120, 80); c.fill(); c.fillStyle = '#fff'; c.fillRect(vp - .5, 29, 1, 51);
-    for (const q of RIV.filter(q => q.prog < P.prog - 1.5 && P.prog - q.prog < 70).sort((a, b) => a.prog - b.prog)) { const d = P.prog - q.prog, z = clamp(150 / d, 3, 60), x = vp + (q.lat - P.lat) * 190 / d;
-      c.fillStyle = q.hex; const y = 30 + z * .5; c.fillRect(x - z / 2, y - z * .3, z, z * .5); c.fillStyle = '#2b3854'; c.fillRect(x - z * .36, y - z * .48, z * .72, z * .2); c.fillStyle = '#17181d'; c.fillRect(x - z / 2, y + z * .16, z, z * .1); }
-    c.fillStyle = '#ff2d8a'; c.fillRect(s < 0 ? 112 : 0, 30, 16, 50); c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(s < 0 ? 114 : 2, 34, 3, 44); m.c.tex.needsUpdate = true; }); }
 
 // ── confetti in YOUR room: paper that flutters down, settles on the dash and on your real floor, and stays a while
 const CFN = 240, CF = new THREE.InstancedMesh(new THREE.PlaneGeometry(.011, .019), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, toneMapped: false }), CFN), CFP = [...Array(CFN)].map(() => ({ on: 0, p: new V(), v: new V(), r: new THREE.Euler(), w: new V(), life: 0, land: 0 })); let CFk = 0;

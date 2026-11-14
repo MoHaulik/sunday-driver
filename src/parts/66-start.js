@@ -29,7 +29,7 @@ function updKey(dt) { const ph = G.phase;
     _q.setFromUnitVectors(ZA, _v.copy(h.pp).sub(IGN).normalize()); KG.quaternion.slerp(_q, 1 - Math.exp(-dt * 12)); KG.position.copy(h.pp).sub(_v.set(0, 0, .012).applyQuaternion(KG.quaternion)); // it points itself at the ignition as you bring it close
     if (keyTip().distanceTo(IGN) < .045) { KEYS.state = 'in'; KEYS.hand = null; sfx('keyin'); KEYS.at = T; P.shake = .15; } }
   else if (KEYS.state === 'in') { let h = KEYS.hand; if (!h) { for (const q of PH) if (q.ok && q.pinchDown && q.pp.distanceTo(KG.position) < .07) { h = KEYS.hand = q; KEYS.ref = twistAng(q); KEYS.base = KEYS.ang; } }
-    else if (!h.ok || !h.pinch) KEYS.hand = h = null; let a = h ? clamp(KEYS.base + Math.abs(wrapPi(twistAng(h) - KEYS.ref)), 0, 1.15) : KEYS.ang * Math.exp(-dt * 3); keyTurn(a); } }
+    else if (!h.ok || !h.pinch) KEYS.hand = h = null; const rest = KEYS.maxA >= .7 ? .7 : KEYS.maxA >= .35 ? .35 : 0; let a = h ? clamp(KEYS.base + Math.abs(wrapPi(twistAng(h) - KEYS.ref)) * 1.9, 0, 1.15) : rest + (KEYS.ang - rest) * Math.exp(-dt * 8); keyTurn(a); } } // a small wrist twist is a full turn; let go and it stays at the last click (ACC, ON), like a real ignition
 function _ring() { KEYS.ring.quaternion.copy(KG.quaternion).invert(); } // the fob hangs straight down whatever the key does
 function twistAng(h) { const v = _v.copy(h.tw), n = _v2.copy(KN); v.addScaledVector(n, -v.dot(n)); const u = _v3.set(1, 0, 0).applyQuaternion(KQ0), w = _v4.crossVectors(n, u); return Math.atan2(v.dot(w), v.dot(u)); }
 function keyTurn(a) { const p = KEYS.ang; KEYS.ang = a; keyInPose(a); KEYS.maxA = Math.max(KEYS.maxA, a);
