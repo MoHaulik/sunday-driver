@@ -54,20 +54,19 @@ float vn3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(
 // The sky is one function of a direction, so puddles and the sea reflect the very same clouds. Y2K cartoon sky: a clean gradient, a flat sun with an ink ring, a few sparkles,
 // and sixteen hand-placed puffs of cumulus, each a cluster of round lobes with a flat bottom, a lavender belly and an ink outline. Cheap: whole clusters are skipped unless you look at them.
 const CLD = (() => { const h = k => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }, C = [], L = [], dir = (a, e) => [Math.cos(e) * Math.sin(a), Math.sin(e), -Math.cos(e) * Math.cos(a)]; let n = 0;
-  const cloud = (az, e0, R, sq, bumps) => { C.push([...dir(az, e0 + R * .4), Math.cos(R * 2.2)], [Math.sin(e0), sq, 0, 0]); // per cloud: where it is, its flat bottom, how squashed
-    for (let j = 0; j < 8; j++) { const t = j / 7 - .5, top = 1 - Math.abs(t) * 1.7, r = R * (.3 + .42 * Math.max(top, 0) * bumps + h(n * 7 + j) * .16), u = t * R * 2.6 + (h(n * 3 + j) - .5) * R * .25, v = r * (.15 + h(n * 11 + j) * .45) * (1 + top * .6); L.push([...dir(az + u / Math.cos(e0), e0 + v), r]); } n++; };
-  for (let k = 0; k < 16; k++) cloud((k + h(k + 300)) / 16 * 6.283, .004 + h(k + 400) * .018, .11 + h(k + 500) * .09, 7, .7);          // a low band of long flat clouds sitting on the horizon
-  for (let k = 0; k < 30; k++) cloud((k + h(k) * .8) / 30 * 6.283 + 1.3, .045 + h(k + 50) ** 1.3 * .42, .06 + h(k + 90) ** 1.4 * .11, 0, 1); // puffs, big and small, at every height
+  const A = [[-1.55, .5], [-.85, .78], [-.1, 1], [.7, .86], [1.4, .58], [-.45, .62], [.35, .66]]; // the classic cartoon puff: an arch of round bumps, biggest in the middle, a flat bottom
+  for (let k = 0; k < 14; k++) { const az = (k + h(k) * .6) / 14 * 6.283 + .4, e0 = .1 + h(k + 50) * .34, R = .08 + h(k + 90) * .06, sx = .8 + h(k + 7) * .5; C.push([...dir(az, e0 + R * .5), Math.cos(R * 2.6)], [Math.sin(e0), 0, 0, 0]);
+    A.forEach(([u, sz], j) => { const r = R * sz * (.92 + h(k * 9 + j) * .16), up = j > 4 ? r * .9 : r * .32; L.push([...dir(az + u * R * sx / Math.cos(e0), e0 + up), r * .72]); }); L.push(L[L.length - 1]); n++; }
   const f = a => a.map(v => `vec4(${v.map(x => x.toFixed(4)).join(',')})`).join(','); return `const int NC=${n};const vec4 CC[${n * 2}]=vec4[${n * 2}](${f(C)});const vec4 CL[${n * 8}]=vec4[${n * 8}](${f(L)});`; })();
 const SKY = `uniform vec3 uSunT,uSunC,uZen,uHor,uCl,uCs,uFogC;uniform float uCov,uSunI,uTime;${CLD}
 float cg(int i,vec3 e,float k){float g=-1.,sq=CC[i*2+1].y;for(int j=0;j<8;j++){vec4 l=CL[i*8+j];float r=l.w*k,dy=e.y-l.y,t2=2.*(1.-dot(e,l.xyz))+sq*dy*dy;g=max(g,(r*r-t2)/(2.*r));}return min(g,e.y-CC[i*2+1].x);} // >0 inside the cloud, in radians from its edge
 vec3 sky(vec3 d,int o){float h=max(d.y,0.),ca=cos(uTime*.004),sa=sin(uTime*.004);vec3 c=mix(uHor,uZen,smoothstep(0.,.62,pow(h,.75)));c=mix(c,uHor*1.06+.04,(1.-smoothstep(0.,.07,h))*.6); // a bright band on the horizon
   float sd=dot(d,uSunT),sun=smoothstep(.99905,.9992,sd);c+=uSunC*(pow(max(sd,0.),28.)*.25+pow(max(sd,0.),5.)*.08)*uSunI;c=mix(c,mix(c,vec3(.11,.07,.2),.55),smoothstep(.99875,.9989,sd)*(1.-sun)*uSunI);c=mix(c,uSunC*1.25+.1,sun*uSunI);
   if(o>0&&h>.15){vec2 q=d.xz/(1.+d.y)*34.,id=floor(q),f=fract(q)-.5;float r=h1(id);if(r>.93){vec2 p=f-(vec2(h1(id+4.1),h1(id+8.3))-.5)*.5;float s=(1.-smoothstep(0.,.06,abs(p.x)*abs(p.y)*90.+length(p)*2.2))*(.55+.45*sin(uTime*2.+r*40.));c=mix(c,vec3(1.,.93,.98),s*smoothstep(.15,.4,h)*.8);}} // sparkles
-  vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=normalize(vec3(uSunT.x*ca-uSunT.z*sa,0.,uSunT.x*sa+uSunT.z*ca)+vec3(0.,-.0001,0.));float k=1.+(.5-uCov)*1.1,ink=1.-smoothstep(.0022,.0034,0.);vec3 ic=mix(uCs,vec3(.11,.07,.2),.78);
+  vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=normalize(vec3(uSunT.x*ca-uSunT.z*sa,0.,uSunT.x*sa+uSunT.z*ca)+vec3(0.,-.0001,0.));float k=1.+(.5-uCov)*.8;vec3 ic=mix(uCs,vec3(.11,.07,.2),.7);
   for(int i=0;i<NC;i++){if(dot(e,CC[i*2].xyz)<CC[i*2].w-(k-1.)*.03)continue;float g=cg(i,e,k);if(g<-.0001)continue; // clouds are drawn back to front: each one paints over the last, outline and all
-    float base=e.y-CC[i*2+1].x,g2=o>0?cg(i,normalize(e-sh*.014-vec3(0.,.006,0.)),k):1.;vec3 cc=mix(uCs,uCl,smoothstep(-.0004,.0012,g2));cc=mix(uCs,cc,smoothstep(.003,.009,base)); // cel shading: a crescent of shadow on the side away from the sun, and a shaded belly
-    c=mix(cc,ic,1.-smoothstep(.0018,.0032,g));}
+    float base=e.y-CC[i*2+1].x;vec3 cc=mix(mix(uCl,uCs,.45),uCl,smoothstep(.0,.014,base)); // white, with a soft belly where the flat bottom is
+    c=mix(cc,ic,1.-smoothstep(.0011,.0021,g));}
   return mix(uFogC,c,smoothstep(-.02,.03,d.y));}`;
 const u = v => ({ value: v }), col = h => new C(h);
 const UW = { uSun: u(new V(0, 1, 0)), uSunT: u(new V(0, 1, 0)), uSunC: u(col('#fff')), uShC: u(col('#fff')), uFogC: u(col('#fff')), uZen: u(col('#fff')), uHor: u(col('#fff')), uCl: u(col('#fff')), uCs: u(col('#fff')), uSeaA: u(col('#fff')), uSeaB: u(col('#fff')),

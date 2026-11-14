@@ -7,7 +7,7 @@ function handState(h) { const ctl = h.src && !h.src.hand, d = h.tips[0].distance
   h.pinchDown = h.pinch && !h.pinch0; h.pinchUp = !h.pinch && h.pinch0; h.pinch0 = h.pinch; }
 
 // ── the screens sleep until the key wakes them
-const SCR = []; cab.traverse(o => { const m = o.material; if (m && m.map && (m.map === MINI.tex || m.map === MIRC.tex)) SCR.push(m); }); // the middle screen and the mirror; the cluster stays lit to tell you what to do
+const SCR = []; cab.traverse(o => { const m = o.material; if (m && m.map && m.map === MIRC.tex) SCR.push(m); }); // the mirror sleeps; the middle screen stays lit to tell you what to do
 let POWER = 1; const setPower = p => { POWER = p; SCR.forEach(m => m.color.setScalar(p)); };
 
 // ── the key: pink plastic head, a notched blade, and the fob on its ring
@@ -41,6 +41,8 @@ const HOP = { y: 0, v: 0, r: 0, vr: 0 };
 function ignitionFx() { HOP.v = .55; HOP.vr = -1.6; sfx('backfire'); setPower(1); for (const x of [.6, .93]) burst(new V(x, -.268, -.545), 14, 1.4); burst(new V(CX, -.2, -.7), 10, 2.2); NEONF = 1; }
 let NEONF = 0;
 function updHop(dt) { HOP.v += (-260 * HOP.y - 7 * HOP.v) * dt; HOP.y += HOP.v * dt; HOP.vr += (-200 * HOP.r - 6 * HOP.vr) * dt; HOP.r += HOP.vr * dt; 
+  const fu = (215 - 100 * (.78 + Math.sin(T * .3) * .01)) * Math.PI / 180, te = (215 - 100 * (G.engine ? Math.min(.55, .2 + (T % 600) * .01) : 0)) * Math.PI / 180; subN[0].rotation.z = fu; subN[1].rotation.z += (te - subN[1].rotation.z) * .02; // fuel and temperature
+  const bl = Math.sin(T * 9) > 0, st = IN.steer || 0; TELL[0].material.color.set('#7dff9a').multiplyScalar(st > .45 && bl ? 1 : .12); TELL[1].material.color.set('#7dff9a').multiplyScalar(st < -.45 && bl ? 1 : .12); TELL[2].material.color.set('#ff4fa3').multiplyScalar(SMIR.some(q => !q.on) && bl ? 1 : .12); // blinkers when you lean on the wheel; a warning lamp when a mirror is gone
   cab.position.y = HOP.y; tilt.position.y = HOP.y; cab.rotation.x = HOP.r * .05; tilt.rotation.x += HOP.r * .05; NEONF = Math.max(0, NEONF - dt * 1.5); if (NEONF > 0 && !has('neon')) M.neon.color.set('#ff5fb8').lerp(_c.set('#ffffff'), NEONF); }
 
 // ── the CDs. Burned discs, marker on the label side, rainbow on the back, and the light running across them as you move your head
@@ -111,7 +113,7 @@ function miniBoot(m) { const ph = G.phase; if (!(ph === 'ready' || ph === 'boot'
   if (ph === 'crank') { const k = s01(G.t / 2.2); m.fillStyle = '#ff2d8a'; m.fillRect(0, 0, 512, 288); m.font = 'italic 800 54px Unbounded,sans-serif'; m.lineWidth = 10; m.strokeStyle = '#1d1233'; m.lineJoin = 'round'; m.strokeText('SUNDAY', 256, 104); m.fillStyle = '#fff3a6'; m.fillText('SUNDAY', 256, 104); m.strokeText('DRIVER', 256, 166); m.fillStyle = '#fff'; m.fillText('DRIVER', 256, 166);
     m.fillStyle = '#1d1233'; m.fillRect(106, 222, 300, 16); m.fillStyle = '#5ff3ff'; m.fillRect(110, 226, 292 * k, 8); }
   else if (ph === 'cd') { m.fillStyle = '#5ff3ff'; m.font = 'italic 700 40px "Chakra Petch",sans-serif'; m.fillText('PICK A CD', 256, 100); m.fillStyle = '#c9b8ff'; m.font = '500 22px "Chakra Petch",sans-serif'; m.fillText('swipe through them · pinch one · feed the player', 256, 150); m.font = '700 40px "Chakra Petch",sans-serif'; m.fillStyle = '#ff4fa3'; m.fillText('◀   ' + (Math.round(CDS.sel) + 1) + ' / ' + CDS.items.length + '   ▶', 256, 210); }
-  else { m.fillStyle = `rgba(255,79,163,${.25 + .2 * Math.sin(T * 3)})`; m.font = 'italic 800 46px Unbounded,sans-serif'; m.fillText('NXT', 256, 144); }
+  else { const inn = KEYS.state === 'in'; m.fillStyle = `rgba(255,79,163,${.75 + .25 * Math.sin(T * 5)})`; m.font = 'italic 800 46px Unbounded,sans-serif'; m.fillText(inn ? 'TURN THE KEY' : 'TAKE THE KEY', 256, 116); m.fillStyle = '#c9b8ff'; m.font = '500 24px "Chakra Petch",sans-serif'; m.fillText(inn ? 'pinch it and twist your wrist' : 'pinch it and put it in the ignition', 256, 176); }
   return true; }
 function startFx(dt) { for (const h of PH) if (h.ok) handState(h); updKey(dt); _ring(); updCD(dt); updHop(dt); }
 function startReset() { keyReset(); CDS.state = 'off'; CDS.g.visible = false; RADIO.on = false; ledMsg = ''; }

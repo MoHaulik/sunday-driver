@@ -127,20 +127,19 @@ float vn3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(
 // The sky is one function of a direction, so puddles and the sea reflect the very same clouds. Y2K cartoon sky: a clean gradient, a flat sun with an ink ring, a few sparkles,
 // and sixteen hand-placed puffs of cumulus, each a cluster of round lobes with a flat bottom, a lavender belly and an ink outline. Cheap: whole clusters are skipped unless you look at them.
 const CLD = (() => { const h = k => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }, C = [], L = [], dir = (a, e) => [Math.cos(e) * Math.sin(a), Math.sin(e), -Math.cos(e) * Math.cos(a)]; let n = 0;
-  const cloud = (az, e0, R, sq, bumps) => { C.push([...dir(az, e0 + R * .4), Math.cos(R * 2.2)], [Math.sin(e0), sq, 0, 0]); // per cloud: where it is, its flat bottom, how squashed
-    for (let j = 0; j < 8; j++) { const t = j / 7 - .5, top = 1 - Math.abs(t) * 1.7, r = R * (.3 + .42 * Math.max(top, 0) * bumps + h(n * 7 + j) * .16), u = t * R * 2.6 + (h(n * 3 + j) - .5) * R * .25, v = r * (.15 + h(n * 11 + j) * .45) * (1 + top * .6); L.push([...dir(az + u / Math.cos(e0), e0 + v), r]); } n++; };
-  for (let k = 0; k < 16; k++) cloud((k + h(k + 300)) / 16 * 6.283, .004 + h(k + 400) * .018, .11 + h(k + 500) * .09, 7, .7);          // a low band of long flat clouds sitting on the horizon
-  for (let k = 0; k < 30; k++) cloud((k + h(k) * .8) / 30 * 6.283 + 1.3, .045 + h(k + 50) ** 1.3 * .42, .06 + h(k + 90) ** 1.4 * .11, 0, 1); // puffs, big and small, at every height
+  const A = [[-1.55, .5], [-.85, .78], [-.1, 1], [.7, .86], [1.4, .58], [-.45, .62], [.35, .66]]; // the classic cartoon puff: an arch of round bumps, biggest in the middle, a flat bottom
+  for (let k = 0; k < 14; k++) { const az = (k + h(k) * .6) / 14 * 6.283 + .4, e0 = .1 + h(k + 50) * .34, R = .08 + h(k + 90) * .06, sx = .8 + h(k + 7) * .5; C.push([...dir(az, e0 + R * .5), Math.cos(R * 2.6)], [Math.sin(e0), 0, 0, 0]);
+    A.forEach(([u, sz], j) => { const r = R * sz * (.92 + h(k * 9 + j) * .16), up = j > 4 ? r * .9 : r * .32; L.push([...dir(az + u * R * sx / Math.cos(e0), e0 + up), r * .72]); }); L.push(L[L.length - 1]); n++; }
   const f = a => a.map(v => `vec4(${v.map(x => x.toFixed(4)).join(',')})`).join(','); return `const int NC=${n};const vec4 CC[${n * 2}]=vec4[${n * 2}](${f(C)});const vec4 CL[${n * 8}]=vec4[${n * 8}](${f(L)});`; })();
 const SKY = `uniform vec3 uSunT,uSunC,uZen,uHor,uCl,uCs,uFogC;uniform float uCov,uSunI,uTime;${CLD}
 float cg(int i,vec3 e,float k){float g=-1.,sq=CC[i*2+1].y;for(int j=0;j<8;j++){vec4 l=CL[i*8+j];float r=l.w*k,dy=e.y-l.y,t2=2.*(1.-dot(e,l.xyz))+sq*dy*dy;g=max(g,(r*r-t2)/(2.*r));}return min(g,e.y-CC[i*2+1].x);} // >0 inside the cloud, in radians from its edge
 vec3 sky(vec3 d,int o){float h=max(d.y,0.),ca=cos(uTime*.004),sa=sin(uTime*.004);vec3 c=mix(uHor,uZen,smoothstep(0.,.62,pow(h,.75)));c=mix(c,uHor*1.06+.04,(1.-smoothstep(0.,.07,h))*.6); // a bright band on the horizon
   float sd=dot(d,uSunT),sun=smoothstep(.99905,.9992,sd);c+=uSunC*(pow(max(sd,0.),28.)*.25+pow(max(sd,0.),5.)*.08)*uSunI;c=mix(c,mix(c,vec3(.11,.07,.2),.55),smoothstep(.99875,.9989,sd)*(1.-sun)*uSunI);c=mix(c,uSunC*1.25+.1,sun*uSunI);
   if(o>0&&h>.15){vec2 q=d.xz/(1.+d.y)*34.,id=floor(q),f=fract(q)-.5;float r=h1(id);if(r>.93){vec2 p=f-(vec2(h1(id+4.1),h1(id+8.3))-.5)*.5;float s=(1.-smoothstep(0.,.06,abs(p.x)*abs(p.y)*90.+length(p)*2.2))*(.55+.45*sin(uTime*2.+r*40.));c=mix(c,vec3(1.,.93,.98),s*smoothstep(.15,.4,h)*.8);}} // sparkles
-  vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=normalize(vec3(uSunT.x*ca-uSunT.z*sa,0.,uSunT.x*sa+uSunT.z*ca)+vec3(0.,-.0001,0.));float k=1.+(.5-uCov)*1.1,ink=1.-smoothstep(.0022,.0034,0.);vec3 ic=mix(uCs,vec3(.11,.07,.2),.78);
+  vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=normalize(vec3(uSunT.x*ca-uSunT.z*sa,0.,uSunT.x*sa+uSunT.z*ca)+vec3(0.,-.0001,0.));float k=1.+(.5-uCov)*.8;vec3 ic=mix(uCs,vec3(.11,.07,.2),.7);
   for(int i=0;i<NC;i++){if(dot(e,CC[i*2].xyz)<CC[i*2].w-(k-1.)*.03)continue;float g=cg(i,e,k);if(g<-.0001)continue; // clouds are drawn back to front: each one paints over the last, outline and all
-    float base=e.y-CC[i*2+1].x,g2=o>0?cg(i,normalize(e-sh*.014-vec3(0.,.006,0.)),k):1.;vec3 cc=mix(uCs,uCl,smoothstep(-.0004,.0012,g2));cc=mix(uCs,cc,smoothstep(.003,.009,base)); // cel shading: a crescent of shadow on the side away from the sun, and a shaded belly
-    c=mix(cc,ic,1.-smoothstep(.0018,.0032,g));}
+    float base=e.y-CC[i*2+1].x;vec3 cc=mix(mix(uCl,uCs,.45),uCl,smoothstep(.0,.014,base)); // white, with a soft belly where the flat bottom is
+    c=mix(cc,ic,1.-smoothstep(.0011,.0021,g));}
   return mix(uFogC,c,smoothstep(-.02,.03,d.y));}`;
 const u = v => ({ value: v }), col = h => new C(h);
 const UW = { uSun: u(new V(0, 1, 0)), uSunT: u(new V(0, 1, 0)), uSunC: u(col('#fff')), uShC: u(col('#fff')), uFogC: u(col('#fff')), uZen: u(col('#fff')), uHor: u(col('#fff')), uCl: u(col('#fff')), uCs: u(col('#fff')), uSeaA: u(col('#fff')), uSeaB: u(col('#fff')),
@@ -358,12 +357,9 @@ skyDome.renderOrder = RO.sky; skyDome.frustumCulled = false; world.add(skyDome);
 function carGeo(hex) { const b = new MB(), c = col(hex), dk = col('#17181d'), gl = col('#2b3854'), Tm = (x, y, z, rz = 0) => new THREE.Matrix4().compose(new V(x, y, z), new Qn().setFromAxisAngle(ZA, rz), new V(1, 1, 1));
   const taper = (g, sx, sz) => { const p = g.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) > 0) { p.setX(i, p.getX(i) * sx); p.setZ(i, p.getZ(i) * sz); } g.computeVertexNormals(); return g; };
   b.add(taper(new THREE.BoxGeometry(1.66, .5, 3.9), .93, .96), Tm(0, .55, 0), c).add(new THREE.BoxGeometry(1.7, .17, 3.96), Tm(0, .3, 0), dk).add(taper(new THREE.BoxGeometry(1.5, .48, 2.05), .8, .68), Tm(0, 1.03, .32), gl).add(new THREE.BoxGeometry(1.2, .05, 1.38), Tm(0, 1.285, .32), c);
-  b.add(new THREE.BoxGeometry(1.36, .04, .3), Tm(0, 1.0, 1.84), c).add(new THREE.BoxGeometry(.4, .012, 1.2), Tm(0, .795, -1.25), WHITE).add(new THREE.BoxGeometry(.4, .012, 1.3), Tm(0, 1.31, .32), WHITE).add(new THREE.BoxGeometry(.4, .012, .5), Tm(0, .805, 1.62), WHITE); // racing stripes nose to tail
-  b.add(new THREE.BoxGeometry(1.42, .06, .32), Tm(0, 1.08, 1.86), dk).add(new THREE.BoxGeometry(.5, .17, .03), Tm(0, .47, 1.985), WHITE).add(new THREE.BoxGeometry(.38, .07, .035), Tm(0, .47, 2.0), col('#1d1233')).add(new THREE.BoxGeometry(1.5, .05, .06), Tm(0, .4, 2.0), col('#ff4fa3')); // spoiler lip, a number plate, a candy bumper strip
-  for (const x of [-.45, -.3]) b.add(new THREE.CylinderGeometry(.045, .045, .2, 10).rotateX(Math.PI / 2), Tm(x, .26, 1.98), col('#dfe3ea'));
+  b.add(new THREE.BoxGeometry(1.36, .04, .3), Tm(0, 1.0, 1.84), c).add(new THREE.BoxGeometry(.4, .012, 1.2), Tm(0, .795, -1.25), WHITE).add(new THREE.BoxGeometry(.4, .012, 1.3), Tm(0, 1.31, .32), WHITE);
   for (const s of [-1, 1]) { for (const z of [-1.25, 1.25]) b.add(new THREE.CylinderGeometry(.31, .31, .24, 14), Tm(s * .78, .31, z, Math.PI / 2), dk).add(new THREE.CylinderGeometry(.17, .17, .26, 8), Tm(s * .78, .31, z, Math.PI / 2), col('#dcdee3'));
-    b.add(new THREE.CylinderGeometry(.22, .22, .02, 18).rotateZ(Math.PI / 2), Tm(s * .835, .6, -.15), WHITE).add(new THREE.CylinderGeometry(.15, .15, .022, 18).rotateZ(Math.PI / 2), Tm(s * .835, .6, -.15), col('#ff4fa3')); // a racing roundel on each door
-    b.add(new THREE.BoxGeometry(.36, .13, .06), Tm(s * .55, .63, -1.93), col('#fff6c9')).add(new THREE.BoxGeometry(.42, .13, .06), Tm(s * .53, .65, 1.93), col('#ff2b6e')).add(new THREE.BoxGeometry(.16, .13, .065), Tm(s * .26, .65, 1.93), col('#ffffff')).add(new THREE.BoxGeometry(.05, .16, 1.36), Tm(s * .62, 1.03, .32), c); }
+    b.add(new THREE.BoxGeometry(.36, .13, .06), Tm(s * .55, .63, -1.93), col('#fff6c9')).add(new THREE.BoxGeometry(.42, .11, .06), Tm(s * .53, .65, 1.93), col('#ff2b2b')).add(new THREE.BoxGeometry(.05, .16, 1.36), Tm(s * .62, 1.03, .32), c); }
   return b.geo(); }
 const blobTex = (() => { const { ctx, tex } = ctex(64, 64, false), g = ctx.createRadialGradient(32, 32, 4, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.6, 'rgba(255,255,255,.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64); return tex; })();
 const OUTM = new THREE.MeshBasicMaterial({ color: '#1d1233', side: THREE.BackSide, ...STEN }); // the ink line round every car: the same car again, a little bigger, inside out
@@ -425,17 +421,34 @@ const CX = CFG.CX, mir = x => 2 * CX - x; // the car's centre line, and a point 
 // ── instruments. Two dials painted once, needles that are real, and a screen between them
 const HUDC = ctex(512, 512), MINI = ctex(512, 288), MIRC = ctex(256, 64);
 const cluster = grp(cab, 0, -.268, -.548); cluster.rotation.x = -CFG.WHEEL.tilt;
-const needle = (x, c) => { const g = grp(cluster, x, -.012, .004); mesh(at(box(.052, .0034, .002), .021, 0, 0), lit({ color: c }), g); mesh(at(cyl(.009, .009, .004, 16), 0, 0, .002, Math.PI / 2), M.black, g); return g; };
-{ const { ctx: c, tex } = ctex(1024, 376); c.fillStyle = '#120c2c'; c.fillRect(0, 0, 1024, 376);
-  const dial = (cx, max, step, lab, red, unit) => { const cy = 224, R = 157, ang = v => (225 - 270 * v / max) * Math.PI / 180;
-    const g = c.createRadialGradient(cx, cy, 20, cx, cy, R + 14); g.addColorStop(0, '#2b1f5c'); g.addColorStop(.85, '#170f38'); g.addColorStop(1, '#ff4fa3'); c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R + 14, 0, 7); c.fill();
-    c.lineCap = 'butt'; for (let v = 0; v <= max + .001; v += step / 2) { const a = ang(v), big = Math.abs(v / step - Math.round(v / step)) < .01, r0 = R - (big ? 24 : 12); c.strokeStyle = v >= red ? '#ff4fa3' : '#bdf3ff'; c.lineWidth = big ? 5 : 2.5; c.beginPath(); c.moveTo(cx + Math.cos(a) * r0, cy - Math.sin(a) * r0); c.lineTo(cx + Math.cos(a) * R, cy - Math.sin(a) * R); c.stroke();
-      if (big && Math.round(v / step) % lab === 0) { c.fillStyle = v >= red ? '#ff4fa3' : '#bdf3ff'; c.font = 'italic 700 27px "Chakra Petch",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(Math.round(v)), cx + Math.cos(a) * (R - 46), cy - Math.sin(a) * (R - 46)); } }
-    c.strokeStyle = '#ff4fa3'; c.lineWidth = 5; c.beginPath(); c.arc(cx, cy, R + 5, -ang(red), -ang(max)); c.stroke(); c.fillStyle = '#c9b8ff'; c.font = '500 19px "Chakra Petch",sans-serif'; c.fillText(unit, cx, cy + 74); };
-  dial(187, 8, 1, 1, 6.5, 'x1000 rpm'); dial(837, 240, 20, 2, 999, 'km/h');
-  mesh([at(box(.37, .15, .05), 0, 0, -.03), at(new THREE.CylinderGeometry(.192, .2, .13, 32, 1, true, Math.PI / 2, Math.PI).rotateX(Math.PI / 2).scale(1, .74, 1), 0, -.058, .03)], M.dash, cluster);
-  mesh(new THREE.PlaneGeometry(.34, .125), lit({ map: tex }), cluster); mesh(uvRect(new THREE.PlaneGeometry(.118, .059), 0, .5, 1, 1).translate(0, -.006, .0015), lit({ map: HUDC.tex }), cluster); }
-const needleR = needle(-.108, '#ff4fa3'), needleS = needle(.108, '#ff4fa3'), setNeedle = (n, v) => { n.rotation.z = (225 - 270 * clamp(v, 0, 1.03)) * Math.PI / 180; };
+// two big chrome-ringed dials with glass over them, and between them a fuel gauge with a heart and a temperature gauge. No screen: the dials are the show
+const DIALX = .098, DIALR = .072, SUBX = 0, ctT = (w, h, f) => { const t = ctex(w, h); f(t.ctx); t.tex.needsUpdate = true; return t; }; let TELL;
+const dialTex = (max, step, lab, red, unit, big) => ctT(512, 512, c => { const cx = 256, cy = 256, R = 236, ang = v => (225 - 270 * v / max) * Math.PI / 180;
+  let g = c.createRadialGradient(cx, cy - 40, 30, cx, cy, R); g.addColorStop(0, '#3a2a86'); g.addColorStop(.7, '#1d1450'); g.addColorStop(1, '#0f0a2e'); c.fillStyle = g; c.beginPath(); c.arc(cx, cy, 256, 0, 7); c.fill();
+  c.lineWidth = 26; c.strokeStyle = '#ff4fa3'; c.beginPath(); c.arc(cx, cy, R - 6, -ang(red), -ang(max)); c.stroke(); // the red zone, in hot pink
+  c.shadowColor = '#7ff6ff'; for (let v = 0; v <= max + .001; v += step / (big ? 4 : 2)) { const a = ang(v), q = v / step, maj = Math.abs(q - Math.round(q)) < .01, hi = v >= red, r0 = R - (maj ? 46 : 22);
+    c.shadowBlur = maj ? 14 : 6; c.strokeStyle = hi ? '#ffd6ea' : '#d6fbff'; c.lineWidth = maj ? 9 : 3.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx + Math.cos(a) * r0, cy - Math.sin(a) * r0); c.lineTo(cx + Math.cos(a) * (R - 10), cy - Math.sin(a) * (R - 10)); c.stroke();
+    if (maj && Math.round(q) % lab === 0) { c.shadowBlur = 16; c.fillStyle = hi ? '#ff9fd0' : '#ffffff'; c.font = `italic 800 ${big ? 50 : 40}px Unbounded,sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(Math.round(v)), cx + Math.cos(a) * (R - 92), cy - Math.sin(a) * (R - 92)); } }
+  c.shadowBlur = 0; c.fillStyle = '#c9b8ff'; c.font = '600 30px "Chakra Petch",sans-serif'; c.textAlign = 'center'; c.fillText(unit, cx, cy + 112); c.font = 'italic 800 28px Unbounded,sans-serif'; c.fillStyle = '#ff4fa3'; c.fillText('NXT', cx, cy + 156);
+  c.fillStyle = 'rgba(255,255,255,.9)'; for (const [x, y, r] of [[cx - 70, cy - 40, 9], [cx + 84, cy + 60, 6]]) { c.beginPath(); c.moveTo(x, y - r * 2); c.quadraticCurveTo(x, y, x + r * 2, y); c.quadraticCurveTo(x, y, x, y + r * 2); c.quadraticCurveTo(x, y, x - r * 2, y); c.quadraticCurveTo(x, y, x, y - r * 2); c.fill(); } }).tex;
+const subTex = (lo, hi, icon) => ctT(256, 256, c => { const g = c.createRadialGradient(128, 110, 10, 128, 128, 128); g.addColorStop(0, '#3a2a86'); g.addColorStop(1, '#120c34'); c.fillStyle = g; c.beginPath(); c.arc(128, 128, 128, 0, 7); c.fill();
+  c.lineCap = 'round'; for (let k = 0; k <= 4; k++) { const a = (215 - 70 * k / 4 * 1.43) * Math.PI / 180; c.strokeStyle = k === 0 ? '#ff4fa3' : '#d6fbff'; c.lineWidth = 7; c.beginPath(); c.moveTo(128 + Math.cos(a) * 92, 150 - Math.sin(a) * 92); c.lineTo(128 + Math.cos(a) * 112, 150 - Math.sin(a) * 112); c.stroke(); }
+  c.fillStyle = '#fff'; c.font = '700 30px "Chakra Petch",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(lo, 46, 196); c.fillText(hi, 210, 196); icon(c); }).tex;
+const needle = (x, y, len, w, col) => { const g = grp(cluster, x, y, .012), S = new THREE.Shape(); S.moveTo(-len * .22, -w); S.lineTo(len, -w * .25); S.lineTo(len, w * .25); S.lineTo(-len * .22, w); S.closePath();
+  mesh(new THREE.ShapeGeometry(S), lit({ color: col }), g); mesh(new THREE.ShapeGeometry(S).scale(.9, .3, 1).translate(0, 0, .0004), lit({ color: '#ffffff' }), g); mesh(at(cyl(w * 2.6, w * 2.8, .005, 20), 0, 0, .002, Math.PI / 2), M.alu, g); mesh(at(cyl(w * 1.3, w * 1.3, .0055, 16), 0, 0, .0025, Math.PI / 2), cm('#ff4fa3', .4), g); return g; };
+{ mesh([at(box(.37, .15, .05), 0, 0, -.03), at(new THREE.CylinderGeometry(.192, .2, .13, 32, 1, true, Math.PI / 2, Math.PI).rotateX(Math.PI / 2).scale(1, .74, 1), 0, -.058, .03)], M.dash, cluster);
+  mesh(at(box(.35, .13, .004), 0, -.004, -.004), M.gloss, cluster); // a deep dark well for the dials to glow in
+  for (const [x, t] of [[-DIALX, dialTex(8, 1, 1, 6.5, 'x1000 rpm', 1)], [DIALX, dialTex(240, 20, 2, 999, 'km/h', 0)]]) { const p = grp(cluster, x, -.006, 0);
+    mesh(new THREE.CircleGeometry(DIALR, 64), lit({ map: t }), p); mesh(at(tor(DIALR + .004, .0055, 64, 12), 0, 0, .002), cm('#ff7cc0', .2, 1), p); mesh(at(tor(DIALR + .0105, .002, 64, 8), 0, 0, .001), M.alu, p); // a pink chrome ring and a thin silver one
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(DIALR * 1.6, 32, 12, 0, Math.PI * 2, 0, .67).rotateX(Math.PI / 2).translate(0, 0, -DIALR * 1.6 * Math.cos(.67) + .003), new THREE.MeshBasicMaterial({ color: '#c8e9ff', transparent: true, opacity: .07, depthWrite: false, clippingPlanes: [CLIP] })); p.add(dome); // the glass over it
+    mesh(new THREE.RingGeometry(DIALR * .62, DIALR * .7, 32, 1, 1.9, .9).translate(0, 0, .0165), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .32, depthWrite: false, clippingPlanes: [CLIP] }), p); } // and a curved glint across it
+  for (const [y, lo, hi, icon] of [[.026, 'E', 'F', c => { c.fillStyle = '#ff4fa3'; c.beginPath(); c.moveTo(128, 132); c.bezierCurveTo(96, 106, 104, 76, 128, 92); c.bezierCurveTo(152, 76, 160, 106, 128, 132); c.fill(); }], [-.03, 'C', 'H', c => { c.strokeStyle = '#7ff6ff'; c.lineWidth = 8; c.beginPath(); c.moveTo(128, 76); c.lineTo(128, 120); c.stroke(); c.beginPath(); c.arc(128, 126, 10, 0, 7); c.stroke(); }]]) {
+    const p = grp(cluster, SUBX, y, 0); mesh(new THREE.CircleGeometry(.022, 40), lit({ map: subTex(lo, hi, icon) }), p); mesh(at(tor(.0235, .0025, 40, 8), 0, 0, .0015), cm('#ff7cc0', .2, 1), p); }
+  const lamp = (x, y, c, d) => { const t = ctT(64, 64, d).tex; return mesh(new THREE.PlaneGeometry(.011, .011).translate(x, y, .002), lit({ map: t, transparent: true, color: c }), cluster); };
+  TELL = [lamp(-.022, .052, '#7dff9a', c => { c.fillStyle = '#fff'; c.beginPath(); c.moveTo(6, 32); c.lineTo(34, 8); c.lineTo(34, 22); c.lineTo(58, 22); c.lineTo(58, 42); c.lineTo(34, 42); c.lineTo(34, 56); c.fill(); }), lamp(.022, .052, '#7dff9a', c => { c.fillStyle = '#fff'; c.beginPath(); c.moveTo(58, 32); c.lineTo(30, 8); c.lineTo(30, 22); c.lineTo(6, 22); c.lineTo(6, 42); c.lineTo(30, 42); c.lineTo(30, 56); c.fill(); }),
+    lamp(0, .052, '#ff4fa3', c => { c.fillStyle = '#fff'; c.font = '800 40px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', 32, 34); c.strokeStyle = '#fff'; c.lineWidth = 6; c.beginPath(); c.arc(32, 32, 26, 0, 7); c.stroke(); })]; }
+const subN = [needle(SUBX, .022, .016, .0011, '#ff4fa3'), needle(SUBX, -.034, .016, .0011, '#7ff6ff')];
+const needleR = needle(-DIALX, -.006, .062, .0028, '#ff4fa3'), needleS = needle(DIALX, -.006, .062, .0028, '#ff4fa3'), setNeedle = (n, v) => { n.rotation.z = (225 - 270 * clamp(v, 0, 1.03)) * Math.PI / 180; };
 
 // ── the wheel. wheelS spins; the column and stalks do not
 const WH = { rot: 0, c: new V(0, CFG.WHEEL.y, CFG.WHEEL.z), u: new V(1, 0, 0), v: new V(0, Math.cos(CFG.WHEEL.tilt), -Math.sin(CFG.WHEEL.tilt)), a: new V(0, Math.sin(CFG.WHEEL.tilt), Math.cos(CFG.WHEEL.tilt)), horn: 0 };
@@ -1014,7 +1027,7 @@ function handState(h) { const ctl = h.src && !h.src.hand, d = h.tips[0].distance
   h.pinchDown = h.pinch && !h.pinch0; h.pinchUp = !h.pinch && h.pinch0; h.pinch0 = h.pinch; }
 
 // ── the screens sleep until the key wakes them
-const SCR = []; cab.traverse(o => { const m = o.material; if (m && m.map && (m.map === MINI.tex || m.map === MIRC.tex)) SCR.push(m); }); // the middle screen and the mirror; the cluster stays lit to tell you what to do
+const SCR = []; cab.traverse(o => { const m = o.material; if (m && m.map && m.map === MIRC.tex) SCR.push(m); }); // the mirror sleeps; the middle screen stays lit to tell you what to do
 let POWER = 1; const setPower = p => { POWER = p; SCR.forEach(m => m.color.setScalar(p)); };
 
 // ── the key: pink plastic head, a notched blade, and the fob on its ring
@@ -1048,6 +1061,8 @@ const HOP = { y: 0, v: 0, r: 0, vr: 0 };
 function ignitionFx() { HOP.v = .55; HOP.vr = -1.6; sfx('backfire'); setPower(1); for (const x of [.6, .93]) burst(new V(x, -.268, -.545), 14, 1.4); burst(new V(CX, -.2, -.7), 10, 2.2); NEONF = 1; }
 let NEONF = 0;
 function updHop(dt) { HOP.v += (-260 * HOP.y - 7 * HOP.v) * dt; HOP.y += HOP.v * dt; HOP.vr += (-200 * HOP.r - 6 * HOP.vr) * dt; HOP.r += HOP.vr * dt; 
+  const fu = (215 - 100 * (.78 + Math.sin(T * .3) * .01)) * Math.PI / 180, te = (215 - 100 * (G.engine ? Math.min(.55, .2 + (T % 600) * .01) : 0)) * Math.PI / 180; subN[0].rotation.z = fu; subN[1].rotation.z += (te - subN[1].rotation.z) * .02; // fuel and temperature
+  const bl = Math.sin(T * 9) > 0, st = IN.steer || 0; TELL[0].material.color.set('#7dff9a').multiplyScalar(st > .45 && bl ? 1 : .12); TELL[1].material.color.set('#7dff9a').multiplyScalar(st < -.45 && bl ? 1 : .12); TELL[2].material.color.set('#ff4fa3').multiplyScalar(SMIR.some(q => !q.on) && bl ? 1 : .12); // blinkers when you lean on the wheel; a warning lamp when a mirror is gone
   cab.position.y = HOP.y; tilt.position.y = HOP.y; cab.rotation.x = HOP.r * .05; tilt.rotation.x += HOP.r * .05; NEONF = Math.max(0, NEONF - dt * 1.5); if (NEONF > 0 && !has('neon')) M.neon.color.set('#ff5fb8').lerp(_c.set('#ffffff'), NEONF); }
 
 // ── the CDs. Burned discs, marker on the label side, rainbow on the back, and the light running across them as you move your head
@@ -1118,7 +1133,7 @@ function miniBoot(m) { const ph = G.phase; if (!(ph === 'ready' || ph === 'boot'
   if (ph === 'crank') { const k = s01(G.t / 2.2); m.fillStyle = '#ff2d8a'; m.fillRect(0, 0, 512, 288); m.font = 'italic 800 54px Unbounded,sans-serif'; m.lineWidth = 10; m.strokeStyle = '#1d1233'; m.lineJoin = 'round'; m.strokeText('SUNDAY', 256, 104); m.fillStyle = '#fff3a6'; m.fillText('SUNDAY', 256, 104); m.strokeText('DRIVER', 256, 166); m.fillStyle = '#fff'; m.fillText('DRIVER', 256, 166);
     m.fillStyle = '#1d1233'; m.fillRect(106, 222, 300, 16); m.fillStyle = '#5ff3ff'; m.fillRect(110, 226, 292 * k, 8); }
   else if (ph === 'cd') { m.fillStyle = '#5ff3ff'; m.font = 'italic 700 40px "Chakra Petch",sans-serif'; m.fillText('PICK A CD', 256, 100); m.fillStyle = '#c9b8ff'; m.font = '500 22px "Chakra Petch",sans-serif'; m.fillText('swipe through them · pinch one · feed the player', 256, 150); m.font = '700 40px "Chakra Petch",sans-serif'; m.fillStyle = '#ff4fa3'; m.fillText('◀   ' + (Math.round(CDS.sel) + 1) + ' / ' + CDS.items.length + '   ▶', 256, 210); }
-  else { m.fillStyle = `rgba(255,79,163,${.25 + .2 * Math.sin(T * 3)})`; m.font = 'italic 800 46px Unbounded,sans-serif'; m.fillText('NXT', 256, 144); }
+  else { const inn = KEYS.state === 'in'; m.fillStyle = `rgba(255,79,163,${.75 + .25 * Math.sin(T * 5)})`; m.font = 'italic 800 46px Unbounded,sans-serif'; m.fillText(inn ? 'TURN THE KEY' : 'TAKE THE KEY', 256, 116); m.fillStyle = '#c9b8ff'; m.font = '500 24px "Chakra Petch",sans-serif'; m.fillText(inn ? 'pinch it and twist your wrist' : 'pinch it and put it in the ignition', 256, 176); }
   return true; }
 function startFx(dt) { for (const h of PH) if (h.ok) handState(h); updKey(dt); _ring(); updCD(dt); updHop(dt); }
 function startReset() { keyReset(); CDS.state = 'off'; CDS.g.visible = false; RADIO.on = false; ledMsg = ''; }
