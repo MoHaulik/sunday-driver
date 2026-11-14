@@ -10,7 +10,7 @@ function loop() {
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
   const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
-  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); startFx(dt); screens(); updAudio(dt);
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); startFx(dt); screens(); updAudio(dt);
   renderer.render(scene, camera);
 }
 
@@ -31,7 +31,7 @@ if (SIM) { addEventListener('mousemove', e => mouse.set(e.clientX / innerWidth *
 function go(to) { // test hook: jump straight to a moment
   if (G.phase === 'poster') begin(false); G.clipZ = 99; G.engine = 1; openGlass(true); RADIO.on = true; if (to === 'ready') { openGlass(false); return setPhase('ready'); } if (to === 'crank') { openGlass(false); return setPhase('crank'); }
   if (to === 'count') return setPhase('count'); setPhase('race'); IN.auto = false; G.t = 3; if (to === 'rain') { P.prog += TL * 1.2; RIV.forEach(r => r.prog += TL * 1.2); } if (to === 'dusk') { P.prog += TL * 2.1; RIV.forEach(r => r.prog += TL * 2.1); } }
-window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, rig, camera, scene, renderer, THREE, A, TL };
+window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, heartShow, trackAt, rig, camera, scene, renderer, THREE, A, TL };
 
 // ═══════════════════════════ BOOT ═══════════════════════════
 (async () => {
