@@ -12,22 +12,50 @@ class Ribbon { constructor(n, hex, parent, w, tp = 1) { this.n = n; this.w = w; 
       if (nrm) _v.copy(nrm); else _v.subVectors(b, a).cross(ZA).normalize(); for (const [s, o] of [[-1, 0], [1, 3]]) { this.pos[i * 6 + o] = P[i].x + _v.x * h * s; this.pos[i * 6 + o + 1] = P[i].y + mid + _v.y * h * s; this.pos[i * 6 + o + 2] = P[i].z + _v.z * h * s; } }
     this.m.geometry.attributes.position.needsUpdate = true; this.m.geometry.setDrawRange(0, Math.max(0, L - 1) * 6); } }
 
-// ── Townsville: a skyline painted once, wrapped round the north side of the bay. Haze takes it, and at golden hour its windows come on
-const SKYL = (() => { const W2 = 2048, H2 = 512, A = ctex(W2, H2), B = ctex(W2, H2, false), c = A.ctx, m = B.ctx, ink = '#1d1233', COLS = ['#ff9fd0', '#9fe0ff', '#b9f08a', '#d8b8ff', '#ffe08a', '#ffffff', '#ffb3a8'];
-  c.clearRect(0, 0, W2, H2); m.fillStyle = '#000'; m.fillRect(0, 0, W2, H2); let x = 0, k = 0;
-  const tower = (x, w, h, f, dome) => { const y = H2 - h; c.fillStyle = f; c.fillRect(x, y, w, h); c.fillStyle = 'rgba(80,40,140,.18)'; c.fillRect(x + w * .72, y, w * .28, h); // a lit face and a shadow face
-    if (dome) { c.beginPath(); c.arc(x + w / 2, y, w * .42, Math.PI, 0); c.fill(); c.strokeStyle = ink; c.lineWidth = 7; c.stroke(); c.fillStyle = ink; c.fillRect(x + w / 2 - 3, y - w * .42 - 46, 6, 46); c.fillStyle = '#ff2d8a'; c.beginPath(); c.arc(x + w / 2, y - w * .42 - 50, 9, 0, 7); c.fill(); }
-    else if (h > 230 && k % 3 === 0) { c.fillStyle = ink; c.fillRect(x + w * .3, y - 34, 5, 34); }
-    const cw = w > 90 ? 18 : 14, gx = Math.floor((w - 16) / (cw + 10)), ox = x + (w - gx * (cw + 10) + 10) / 2; for (let yy = y + 22; yy < H2 - 26; yy += 30) for (let i = 0; i < gx; i++) { const wx = ox + i * (cw + 10); c.fillStyle = '#4f5fb8'; c.fillRect(wx, yy, cw, 16); if (Math.random() < .55) { m.fillStyle = `rgb(${190 + Math.random() * 65 | 0},0,0)`; m.fillRect(wx, yy, cw, 16); } }
-    c.strokeStyle = ink; c.lineWidth = 7; c.strokeRect(x, y, w, h); };
-  while (x < W2 - 40) { const w = 60 + Math.random() * 90, h = 110 + Math.random() * 230 + (k % 5 === 2 ? 90 : 0); tower(x, Math.min(w, W2 - x), h, COLS[k % COLS.length], k === 9 || k === 22); x += w - 4 + Math.random() * 12; k++; }
-  A.tex.wrapS = B.tex.wrapS = THREE.RepeatWrapping; A.tex.needsUpdate = B.tex.needsUpdate = true;
-  const R = 830, cx = 60, cz = 120, a0 = -1.75, a1 = 1.75, g = new THREE.CylinderGeometry(R, R, 210, 64, 1, true, Math.PI + a0, a1 - a0).translate(cx, 95, cz), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * 3);
-  const o = wmesh(g, new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(A.tex), lit: u(B.tex), uGlow: u(0) }, side: THREE.BackSide, ...STEN,
+// ── Townsville across the bay. Not random boxes: seven kinds of building (deco setbacks, a Y2K capsule with a ring, glass slabs, a domed hall, a water-tower walk-up,
+// a billboard block and the NXT needle), each with a lit face, a shadow side, a highlight edge and a fat ink line. Two rows for depth, downtown clusters where it gets tall,
+// a hazy far city behind for parallax. At golden hour the windows come on.
+function townsville(W2, H2, far) { const A = ctex(W2, H2), B = ctex(W2 / 2, H2 / 2, false), c = A.ctx, m = B.ctx, ink = '#1d1233', glass = '#4252ad', S = 3; let sd = far ? 77 : 7; const r = (a = 0, b = 1) => { sd = sd * 16807 % 2147483647; return a + sd / 2147483647 * (b - a); };
+  const PAL = far ? ['#c9b8f0', '#d9c6f6', '#bfb0ec'] : ['#ff8fc7', '#7fd0ff', '#a4e36b', '#c9a6ff', '#ffd86b', '#ffffff', '#ff9e8a', '#8ff0d8'];
+  c.clearRect(0, 0, W2, H2); m.fillStyle = '#000'; m.fillRect(0, 0, W2, H2 / 2); m.scale(.5, .5); c.lineJoin = m.lineJoin = 'round';
+  const shade = h => '#' + new C(h).lerp(new C('#5b3fa8'), .38).getHexString(), lite = h => '#' + new C(h).lerp(new C('#ffffff'), .45).getHexString();
+  const win = (x, y, w, h, round) => { c.fillStyle = glass; if (round) { c.beginPath(); c.arc(x + w / 2, y + h / 2, w / 2, 0, 7); c.fill(); } else c.fillRect(x, y, w, h); c.fillStyle = 'rgba(255,255,255,.28)'; c.fillRect(x, y, w * .35, h); if (r() < .5) { m.fillStyle = `rgb(${200 + r() * 55 | 0},0,0)`; m.fillRect(x, y, w, h); } };
+  const block = (x, y, w, h, f, kind, cap = true) => { const sw = Math.max(6, w * .2), sh = shade(f); // front face, then the shadow side as a slanted face, then windows, then ink
+    c.fillStyle = sh; c.beginPath(); c.moveTo(x + w, y); c.lineTo(x + w + sw, y + sw * .4); c.lineTo(x + w + sw, H2); c.lineTo(x + w, H2); c.fill(); c.fillStyle = f; c.fillRect(x, y, w, H2 - y);
+    if (!far) { const g = c.createLinearGradient(0, y, 0, H2); g.addColorStop(0, 'rgba(255,255,255,.18)'); g.addColorStop(1, 'rgba(91,63,168,.22)'); c.fillStyle = g; c.fillRect(x, y, w, H2 - y); }
+    const pad = far ? 6 : 10; if (far) { c.fillStyle = 'rgba(255,255,255,.55)'; for (let yy = y + 10; yy < H2 - 8; yy += 14) for (let xx = x + 6; xx < x + w - 6; xx += 10) if (r() < .55) c.fillRect(xx, yy, 4, 6); }
+    else if (kind === 'strip') for (let xx = x + pad; xx < x + w - pad - 6; xx += 16) { win(xx, y + 14, 9, H2 - y - 30); }
+    else if (kind === 'band') for (let yy = y + 14; yy < H2 - 20; yy += 26) win(x + pad, yy, w - pad * 2, 11);
+    else if (kind === 'port') for (let yy = y + 18; yy < H2 - 20; yy += 24) for (let xx = x + pad; xx < x + w - pad - 10; xx += 20) win(xx, yy, 12, 12, true);
+    else for (let yy = y + 14; yy < H2 - 20; yy += 24) for (let xx = x + pad; xx < x + w - pad - 10; xx += 18) win(xx, yy, 11, 14);
+    if (!far) { c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(x + 4, y + 4, 3, H2 - y); c.strokeStyle = ink; c.lineWidth = 6; c.beginPath(); c.moveTo(x, H2); c.lineTo(x, y); c.lineTo(x + w, y); c.lineTo(x + w + sw, y + sw * .4); c.lineTo(x + w + sw, H2); c.stroke(); c.lineWidth = 3; c.beginPath(); c.moveTo(x + w, y); c.lineTo(x + w, H2); c.stroke(); }
+    return sw; };
+  const prop = (x, y, w, f) => { if (far) return; c.strokeStyle = ink; c.lineWidth = 4; const t = r(); // rooftop life
+    if (t < .3) { c.beginPath(); c.moveTo(x + w * .7, y); c.lineTo(x + w * .7, y - 34); c.stroke(); c.fillStyle = '#ff4f9a'; c.beginPath(); c.arc(x + w * .7, y - 36, 5, 0, 7); c.fill(); }
+    else if (t < .55) { c.fillStyle = '#e8e4f4'; c.fillRect(x + w * .15, y - 12, w * .25, 12); c.strokeRect(x + w * .15, y - 12, w * .25, 12); }
+    else if (t < .75) { const cx = x + w * .6; c.beginPath(); c.moveTo(cx - 12, y); c.lineTo(cx - 9, y - 18); c.moveTo(cx + 12, y); c.lineTo(cx + 9, y - 18); c.stroke(); c.fillStyle = '#d98b5a'; c.beginPath(); c.roundRect(cx - 14, y - 40, 28, 24, 4); c.fill(); c.stroke(); c.fillStyle = '#b8683e'; c.beginPath(); c.moveTo(cx - 16, y - 40); c.lineTo(cx, y - 52); c.lineTo(cx + 16, y - 40); c.fill(); c.stroke(); } // a water tower
+    else { const bw = Math.min(w * .8, 90); c.fillStyle = '#fff'; c.fillRect(x + 6, y - 40, bw, 32); c.strokeRect(x + 6, y - 40, bw, 32); c.beginPath(); c.moveTo(x + 14, y - 8); c.lineTo(x + 14, y); c.moveTo(x + bw - 2, y - 8); c.lineTo(x + bw - 2, y); c.stroke();
+      c.fillStyle = r() < .5 ? '#ff4f9a' : '#19c3ff'; c.font = 'italic 800 18px Unbounded,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(r() < .5 ? 'NXT' : '♥', x + 6 + bw / 2, y - 23, bw - 8); } };
+  const B7 = { // each returns nothing; draws itself standing on the ground at x with width w and roof height y
+    slab: (x, w, y, f) => { block(x, y, w, H2, f, r() < .5 ? 'band' : 'grid'); prop(x, y, w, f); },
+    deco: (x, w, y, f) => { block(x, y + 70, w, H2, f, 'strip'); block(x + w * .14, y + 30, w * .72, H2, lite(f), 'strip'); block(x + w * .3, y, w * .4, H2, f, 'strip'); if (!far) { c.strokeStyle = ink; c.lineWidth = 4; c.beginPath(); c.moveTo(x + w / 2, y); c.lineTo(x + w / 2, y - 46); c.stroke(); } },
+    capsule: (x, w, y, f) => { block(x, y + w / 2, w, H2, f, 'port'); c.fillStyle = f; c.beginPath(); c.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); c.fill(); if (!far) { c.strokeStyle = ink; c.lineWidth = 6; c.stroke();
+      c.lineWidth = 5; c.strokeStyle = '#fff'; c.beginPath(); c.ellipse(x + w / 2, y + w * .75, w * .82, w * .18, 0, 0, 7); c.stroke(); c.strokeStyle = ink; c.lineWidth = 3; c.beginPath(); c.ellipse(x + w / 2, y + w * .75, w * .82, w * .18, 0, 0, 7); c.stroke(); } }, // the Y2K one: a pill with a Saturn ring
+    dome: (x, w, y, f) => { block(x, y + w * .45, w, H2, '#fff4e0', 'strip'); c.fillStyle = f; c.beginPath(); c.arc(x + w / 2, y + w * .45, w * .36, Math.PI, 0); c.fill(); if (!far) { c.strokeStyle = ink; c.lineWidth = 6; c.stroke(); c.fillStyle = '#ffd23f'; c.beginPath(); c.arc(x + w / 2, y + w * .09 - 6, 7, 0, 7); c.fill(); c.lineWidth = 3; c.stroke(); } },
+    hero: (x, w, y) => { const cx = x + w / 2; block(cx - 9, y + 80, 18, H2, '#fff', 'band'); c.fillStyle = '#ff8fc7'; c.beginPath(); c.ellipse(cx, y + 70, 40, 16, 0, 0, 7); c.fill(); // the NXT needle: a pod, a heart on the spire
+      if (!far) { c.strokeStyle = ink; c.lineWidth = 6; c.stroke(); c.fillStyle = glass; c.fillRect(cx - 30, y + 66, 60, 7); for (let k = 0; k < 6; k++) { m.fillStyle = 'rgb(255,0,0)'; m.fillRect(cx - 30 + k * 10, y + 66, 7, 7); } c.lineWidth = 4; c.beginPath(); c.moveTo(cx, y + 54); c.lineTo(cx, y + 18); c.stroke(); }
+      c.fillStyle = '#ff4f9a'; c.beginPath(); c.moveTo(cx, y + 20); c.bezierCurveTo(cx - 22, y + 4, cx - 12, y - 14, cx, y - 2); c.bezierCurveTo(cx + 12, y - 14, cx + 22, y + 4, cx, y + 20); c.fill(); if (!far) { c.lineWidth = 4; c.stroke(); } } };
+  const env = x => { const u = x / W2; return .35 + .65 * Math.max(Math.exp(-(((u - .28) / .13) ** 2)), Math.exp(-(((u - .74) / .11) ** 2))); }; // two downtowns per tile
+  const each = (x, w, f) => { f(x); if (x + w * 1.3 > W2) f(x - W2); }; // it tiles: whatever runs off the right edge comes back on the left
+  for (const row of far ? [0] : [0, 1]) { let x = row ? 20 : -10; while (x < W2) { const front = row === 1, w = front ? r(60, 120) : r(70, 150), hgt = (front ? r(.25, .5) : r(.45, 1)) * env(x + w / 2) * (H2 - 60), y = H2 - Math.max(70, hgt), f = PAL[r() * PAL.length | 0];
+      const kind = !front && !far && Math.abs(x - W2 * .28) < 50 ? 'hero' : r() < .14 ? 'capsule' : r() < .2 ? 'deco' : r() < .14 && front ? 'dome' : 'slab'; each(x, w, xx => B7[kind](xx, w, kind === 'hero' ? 40 : y, f)); x += w * (front ? r(1.4, 2.6) : r(.82, 1.05)); } }
+  for (const t of [A.tex, B.tex]) { t.wrapS = THREE.RepeatWrapping; t.needsUpdate = true; } return [A.tex, B.tex]; }
+const SKYL = [[830, 210, 95, 1.5, .82], [990, 230, 105, 2, .5]].map(([R, H, Y, rep, k], far) => { const [map, lit] = townsville(far ? 2048 : 4096, 512, far), cx = 60, cz = 120, a0 = -1.75, a1 = 1.75, g = new THREE.CylinderGeometry(R, R, H, 64, 1, true, Math.PI + a0, a1 - a0).translate(cx, Y, cz), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * rep);
+  const o = wmesh(g, new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(map), lit: u(lit), uGlow: u(0), uK: u(k) }, side: THREE.BackSide, ...STEN,
     vertexShader: `varying vec2 vUv;varying float vD;void main(){vUv=uv;vec4 mv=modelViewMatrix*vec4(position,1.);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`,
-    fragmentShader: `uniform sampler2D map,lit;uniform vec3 uFogC,uSunC;uniform float uFog,uGlow;varying vec2 vUv;varying float vD;void main(){vec4 t=texture2D(map,vUv);if(t.a<.5)discard;
-      vec3 c=t.rgb*mix(vec3(1.),uSunC,.35);c=mix(c,vec3(1.,.86,.45),texture2D(lit,vUv).r*uGlow);gl_FragColor=vec4(mix(uFogC,c,.8*exp(-vD*uFog*.35)+.15*uGlow),1.);}` }));
-  o.frustumCulled = false; return o; })();
+    fragmentShader: `uniform sampler2D map,lit;uniform vec3 uFogC,uSunC;uniform float uFog,uGlow,uK;varying vec2 vUv;varying float vD;void main(){vec4 t=texture2D(map,vUv);if(t.a<.5)discard;
+      vec3 c=t.rgb*mix(vec3(1.),uSunC,.3);c=mix(c,vec3(1.,.86,.45),texture2D(lit,vUv).r*uGlow);gl_FragColor=vec4(mix(uFogC,c,uK*exp(-vD*uFog*.35)+.15*uGlow*uK),1.);}` }));
+  o.renderOrder = RO.world - 1 + far * -.5; o.frustumCulled = false; return o; });
 
 // ── hero streaks behind the rivals when they are flat out, and speed lines past your own windows when you boost
 const RTR = RIV.map(r => ({ rb: new Ribbon(26, r.hex, world, .95), acc: 0 }));
@@ -44,7 +72,7 @@ function heartShow() { PPG.win = 0; FLY.forEach(f => { f.rb.pts.length = 0; f.rb
 
 function ppg(dt, sdt) {
   // the sky's mood paints the city: lit windows at golden hour, the sunburst stronger as the sun drops
-  const s = WX.w[0] + WX.w[1] + WX.w[2]; SKYL.material.uniforms.uGlow.value = WX.w[2] / s;
+  const s = WX.w[0] + WX.w[1] + WX.w[2]; SKYL.forEach(o => o.material.uniforms.uGlow.value = WX.w[2] / s);
   // streaks behind rivals going flat out
   for (const [k, r] of RIV.entries()) { const t = RTR[k], fast = s01((r.v - 33) / 9) * (G.phase === 'race' || G.phase === 'finish' || G.phase === 'poster' ? 1 : 0); t.acc += sdt; if (t.acc > .045) { t.acc = 0; t.rb.push(_v.copy(r.g.position)); }
     t.rb.m.material.uniforms.uA.value += (fast * .9 - t.rb.m.material.uniforms.uA.value) * damp(dt, .25); t.rb.m.visible = t.rb.m.material.uniforms.uA.value > .01; if (t.rb.m.visible) t.rb.build(YA, .78); }

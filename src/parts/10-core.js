@@ -51,23 +51,31 @@ const NOISE = `float h1(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758
 float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h1(i),h1(i+vec2(1,0)),f.x),mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x),f.y);}
 float h3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 float vn3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}`;
-// The sky is one function of a direction, so puddles and the sea reflect the very same clouds. Y2K cartoon sky: a clean gradient, a flat sun with an ink ring, a few sparkles,
-// and sixteen hand-placed puffs of cumulus, each a cluster of round lobes with a flat bottom, a lavender belly and an ink outline. Cheap: whole clusters are skipped unless you look at them.
-const CLD = (() => { const h = k => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }, C = [], L = [], dir = (a, e) => [Math.cos(e) * Math.sin(a), Math.sin(e), -Math.cos(e) * Math.cos(a)]; let n = 0;
-  const A = [[-1.55, .5], [-.85, .78], [-.1, 1], [.7, .86], [1.4, .58], [-.45, .62], [.35, .66]]; // the classic cartoon puff: an arch of round bumps, biggest in the middle, a flat bottom
-  for (let k = 0; k < 14; k++) { const az = (k + h(k) * .6) / 14 * 6.283 + .4, e0 = .1 + h(k + 50) * .34, R = .08 + h(k + 90) * .06, sx = .8 + h(k + 7) * .5; C.push([...dir(az, e0 + R * .5), Math.cos(R * 2.6)], [Math.sin(e0), 0, 0, 0]);
-    A.forEach(([u, sz], j) => { const r = R * sz * (.92 + h(k * 9 + j) * .16), up = j > 4 ? r * .9 : r * .32; L.push([...dir(az + u * R * sx / Math.cos(e0), e0 + up), r * .72]); }); L.push(L[L.length - 1]); n++; }
-  const f = a => a.map(v => `vec4(${v.map(x => x.toFixed(4)).join(',')})`).join(','); return `const int NC=${n};const vec4 CC[${n * 2}]=vec4[${n * 2}](${f(C)});const vec4 CL[${n * 8}]=vec4[${n * 8}](${f(L)});`; })();
+// The sky is one function of a direction, so puddles and the sea reflect the very same clouds. Y2K cartoon sky: a clean gradient, a flat sun with an ink ring, a sunburst, a few sparkles,
+// and fourteen hand-shaped clouds of three kinds (a classic puff, a tall tower, a long low bank). Each is a union of round lobes cut flat underneath, cel-shaded against the sun,
+// with a fat ink outline and short ink creases where two bumps meet. Cheap: whole clouds are skipped unless you look at them.
+const CLD = (() => { const h = k => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }, C = [], L = [], NL = 12, dir = (a, e) => new V(Math.cos(e) * Math.sin(a), Math.sin(e), -Math.cos(e) * Math.cos(a)); let n = 0;
+  const KIND = [ // lobes as [across, up from the flat bottom, radius], in units of the cloud's size
+    k => [[-1.5, .3, .5], [-.8, .35, .62], [0, .3, .7], [.85, .32, .6], [1.5, .28, .45], [-1.05, .8, .55], [-.25, 1, .72], [.6, .95, .6], [.15, 1.55, .5], [-.55, 1.45, .38], [1.1, .7, .4], [-1.9, .2, .3]],
+    k => [[-1.1, .3, .55], [-.35, .3, .62], [.4, .32, .6], [1.05, .3, .5], [-.7, .95, .55], [.1, 1.05, .62], [.75, .9, .48], [-.35, 1.65, .52], [.35, 1.75, .5], [0, 2.35, .5], [-.2, 2.8, .36], [.45, 2.6, .32]],
+    k => [...Array(NL)].map((_, j) => j < 8 ? [(j - 3.5) * .52 + (h(k * 31 + j) - .5) * .2, .18 + h(k * 17 + j) * .22, .3 + h(k * 5 + j) * .2] : [(j - 9.5) * .62 + (h(k * 41 + j) - .5) * .4, .62 + h(k * 23 + j) * .4, .4 + h(k * 11 + j) * .22])];
+  for (let k = 0; k < 14; k++) { const az = (k + h(k) * .6) / 14 * 6.283 + .4, kind = [0, 2, 1, 0, 2, 0, 1, 2, 0, 0, 2, 1, 0, 2][k], e0 = (kind === 2 ? .05 : .1) + h(k + 50) * (kind === 1 ? .16 : .3), R = (kind === 1 ? .07 : .075) + h(k + 90) * .045, sx = .85 + h(k + 7) * .4, flip = h(k + 3) < .5 ? -1 : 1;
+    const lob = KIND[kind](k).map(([a, b, r], j) => [dir(az + a * flip * R * sx / Math.cos(e0), e0 + b * R), r * R * (.9 + h(k * 9 + j) * .2)]);
+    const cen = lob.reduce((s, [d]) => s.add(d), new V()).normalize(), rad = Math.max(...lob.map(([d, r]) => Math.acos(Math.min(1, d.dot(cen))) + r));
+    C.push([cen.x, cen.y, cen.z, Math.cos(rad * 1.25 + .01)], [Math.sin(e0), 0, R, 0]); lob.forEach(([d, r]) => L.push([d.x, d.y, d.z, r])); n++; }
+  const f = a => a.map(v => `vec4(${v.map(x => x.toFixed(4)).join(',')})`).join(','); return `const int NC=${n},NL=${NL};const vec4 CC[${n * 2}]=vec4[${n * 2}](${f(C)});const vec4 CL[${n * NL}]=vec4[${n * NL}](${f(L)});`; })();
 const SKY = `uniform vec3 uSunT,uSunC,uZen,uHor,uCl,uCs,uFogC;uniform float uCov,uSunI,uTime;${CLD}
-float cg(int i,vec3 e,float k){float g=-1.,sq=CC[i*2+1].y;for(int j=0;j<8;j++){vec4 l=CL[i*8+j];float r=l.w*k,dy=e.y-l.y,t2=2.*(1.-dot(e,l.xyz))+sq*dy*dy;g=max(g,(r*r-t2)/(2.*r));}return min(g,e.y-CC[i*2+1].x);} // >0 inside the cloud, in radians from its edge
+vec2 cg(int i,vec3 e,float k){float a=-1.,b=-1.;for(int j=0;j<NL;j++){vec4 l=CL[i*NL+j];float r=l.w*k,g=(r*r-2.*(1.-dot(e,l.xyz)))/(2.*r);b=max(b,min(a,g));a=max(a,g);}return vec2(a,b);} // the biggest and second-biggest lobe: >0 inside, in radians from the edge
 vec3 sky(vec3 d,int o){float h=max(d.y,0.),ca=cos(uTime*.004),sa=sin(uTime*.004);vec3 c=mix(uHor,uZen,smoothstep(0.,.62,pow(h,.75)));c=mix(c,uHor*1.06+.04,(1.-smoothstep(0.,.07,h))*.6); // a bright band on the horizon
   float sd=dot(d,uSunT),sun=smoothstep(.99905,.9992,sd);c+=uSunC*(pow(max(sd,0.),28.)*.25+pow(max(sd,0.),5.)*.08)*uSunI;c=mix(c,mix(c,vec3(.11,.07,.2),.55),smoothstep(.99875,.9989,sd)*(1.-sun)*uSunI);c=mix(c,uSunC*1.25+.1,sun*uSunI);
   if(o>0){vec3 ta=normalize(cross(uSunT,vec3(0.,1.,.001))),tb=cross(uSunT,ta);float ry=step(.5,fract(atan(dot(d,tb),dot(d,ta))*2.546+uTime*.012));c=mix(c,c*1.04+uSunC*.1,ry*smoothstep(.5,.97,sd)*(1.-smoothstep(.998,.9989,sd))*min(uSunI,1.));} // the Townsville sunburst: sixteen slow rays round the sun
   if(o>0&&h>.15){vec2 q=d.xz/(1.+d.y)*34.,id=floor(q),f=fract(q)-.5;float r=h1(id);if(r>.93){vec2 p=f-(vec2(h1(id+4.1),h1(id+8.3))-.5)*.5;float s=(1.-smoothstep(0.,.06,abs(p.x)*abs(p.y)*90.+length(p)*2.2))*(.55+.45*sin(uTime*2.+r*40.));c=mix(c,vec3(1.,.93,.98),s*smoothstep(.15,.4,h)*.8);}} // sparkles
-  vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=normalize(vec3(uSunT.x*ca-uSunT.z*sa,0.,uSunT.x*sa+uSunT.z*ca)+vec3(0.,-.0001,0.));float k=1.+(.5-uCov)*.8;vec3 ic=mix(uCs,vec3(.11,.07,.2),.7);
-  for(int i=0;i<NC;i++){if(dot(e,CC[i*2].xyz)<CC[i*2].w-(k-1.)*.03)continue;float g=cg(i,e,k);if(g<-.0001)continue; // clouds are drawn back to front: each one paints over the last, outline and all
-    float base=e.y-CC[i*2+1].x;vec3 cc=mix(mix(uCl,uCs,.45),uCl,smoothstep(.0,.014,base)); // white, with a soft belly where the flat bottom is
-    c=mix(cc,ic,1.-smoothstep(.0011,.0021,g));}
+  vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=vec3(uSunT.x*ca-uSunT.z*sa,uSunT.y,uSunT.x*sa+uSunT.z*ca);float k=1.+(.5-uCov)*.8,lw=.0045;vec3 ic=mix(uCs,vec3(.11,.07,.2),.75),cs=mix(uCs,uCl,.25);
+  for(int i=0;i<NC;i++){if(dot(e,CC[i*2].xyz)<CC[i*2].w-(k-1.)*.03)continue;vec2 g=cg(i,e,k);float yb=e.y-CC[i*2+1].x,G=min(g.x,yb);if(G<-lw)continue; // back to front: each cloud paints over the last, outline and all
+    float R=CC[i*2+1].z,lit=1.;if(o>0){vec3 s2=normalize(sh-e*dot(sh,e)+vec3(0.,.0001,0.)),q=normalize(e-s2*R*.22);vec2 g2=cg(i,q,k);lit=smoothstep(-.0005,.0005,min(g2.x,q.y-CC[i*2+1].x));} // cel shadow: where a step away from the sun leaves the cloud
+    vec3 cc=mix(cs,uCl,lit);cc=mix(cc,mix(cs,ic,.18),1.-smoothstep(.0,.006,yb)); // a darker band along the flat bottom
+    float cr=(1.-smoothstep(.0009,.0021,abs(g.x-g.y)))*step(0.,g.y)*(1.-smoothstep(R*.03,R*.065,G))*smoothstep(R*.3,R*.45,yb); // a short ink hook where two bumps meet, near the edge only
+    c=mix(c,mix(cc,ic,max(1.-smoothstep(lw*.3,lw*.45,G),cr)),smoothstep(-lw*.75,-lw*.6,G));} // the stroke sits across the edge; outside it, the sky is left alone
   return mix(uFogC,c,smoothstep(-.02,.03,d.y));}`;
 const u = v => ({ value: v }), col = h => new C(h);
 const UW = { uSun: u(new V(0, 1, 0)), uSunT: u(new V(0, 1, 0)), uSunC: u(col('#fff')), uShC: u(col('#fff')), uFogC: u(col('#fff')), uZen: u(col('#fff')), uHor: u(col('#fff')), uCl: u(col('#fff')), uCs: u(col('#fff')), uSeaA: u(col('#fff')), uSeaB: u(col('#fff')),
