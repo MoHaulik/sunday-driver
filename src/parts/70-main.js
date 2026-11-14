@@ -10,7 +10,7 @@ function loop() {
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
   const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
-  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); mirrors();
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); mirrors();
   renderer.render(scene, camera);
 }
 

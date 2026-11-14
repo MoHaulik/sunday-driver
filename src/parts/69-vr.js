@@ -139,7 +139,7 @@ function skylife(dt) { const S = SKYLIFE;
 
 // ═══════════════════════════ NIGHT (level two): neon street lamps, headlights that really light the road, beams in the air, tail lights, a glow in the cabin ═══════════════════════════
 const LAMPS2 = [], LCOL = [col('#ff5fc8'), col('#4fe0ff')];
-{ const b = new MB(), ink = col('#2a1d4a'); for (let i = 3, k = 0; i < N; i += 14, k++) { const side = k % 2 ? 1 : -1, lat = (W + (ZONE[i] === 1 ? .3 : 1.2)) * side, x = SX[i] - TZ[i] * lat, z = SZ[i] + TX[i] * lat, y = SY[i], ix2 = TZ[i] * side, iz2 = -TX[i] * side;
+{ const b = new MB(), ink = col('#2a1d4a'); for (let i = 3, k = 0; i < N; i += 14, k++) { if (!ZONE[i]) continue; const side = k % 2 ? 1 : -1, lat = (W + (ZONE[i] === 1 ? .3 : 1.2)) * side, x = SX[i] - TZ[i] * lat, z = SZ[i] + TX[i] * lat, y = SY[i], ix2 = TZ[i] * side, iz2 = -TX[i] * side;
     const top = new V(x, y + 5.6, z), head = new V(x + ix2 * 1.5, y + 5.5, z + iz2 * 1.5); b.add(bar(new V(x, y, z), top, .16), new THREE.Matrix4(), ink).add(bar(top, head, .1), new THREE.Matrix4(), ink).add(new THREE.SphereGeometry(.28, 10, 6).scale(1.3, .6, 1.3), M4(head.x, head.y - .1, head.z), col('#f6f0ff'));
     LAMPS2.push({ p: new V(head.x, head.y - .35, head.z), c: LCOL[k % 2], fl: k % 7 === 3 }); } // one in seven is a dodgy neon that flickers
   wmesh(b.geo()).frustumCulled = false; }
@@ -158,9 +158,15 @@ const DASHL = [new THREE.PointLight('#ff5fd0', 0, 1.1), new THREE.PointLight('#4
 const LSORT = LAMPS2.map((l, k) => k);
 function night(dt) { const nt = UW.uNight.value; DASHL[0].intensity = nt * 1.3; DASHL[1].intensity = nt * .9; MYBEAM.visible = nt > .01; if (nt < .01) return;
   const HL = UW.uHL.value, HD = UW.uHD.value, M = world.matrixWorld; let k = 0;
-  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, ps = c === P ? P.psi : o.psi, fx = Math.sin(ps), fz = -Math.cos(ps); _v.set(o.x + fx * 2.1, (o.y || 0) + .7, o.z + fz * 2.1).applyMatrix4(M); _v2.set(fx, -.09, fz).transformDirection(M); HL[k].set(_v.x, _v.y, _v.z, 1); HD[k].set(_v2.x, _v2.y, _v2.z, 0); k++; }
+  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, ps = c === P ? P.psi : o.psi, fx = Math.sin(ps), fz = -Math.cos(ps), far = c !== P && Math.hypot(o.x - P.x, o.z - P.z) > 110; _v.set(o.x + fx * 2.1, (o.y || 0) + .7, o.z + fz * 2.1).applyMatrix4(M); _v2.set(fx, -.07, fz).transformDirection(M); HL[k].set(_v.x, _v.y, _v.z, far ? 0 : c === P ? 1.25 : 1); /* cars far away cost nothing */ HD[k].set(_v2.x, _v2.y, _v2.z, 0); k++; }
   MYBEAM.position.set(P.x, P.y, P.z); MYBEAM.rotation.set(0, -P.psi, 0);
   LSORT.sort((a, b) => (LAMPS2[a].p.x - P.x) ** 2 + (LAMPS2[a].p.z - P.z) ** 2 - (LAMPS2[b].p.x - P.x) ** 2 - (LAMPS2[b].p.z - P.z) ** 2); // the eight lamps nearest you light the scene
-  for (let i = 0; i < 8; i++) { const l = LAMPS2[LSORT[i]], f = l.fl ? (Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1) : 1; _v.copy(l.p).applyMatrix4(M); UW.uLP.value[i].set(_v.x, _v.y, _v.z, f); UW.uLC.value[i].set(l.c.r, l.c.g, l.c.b); }
+  for (let i = 0; i < 8; i++) { const l = LAMPS2[LSORT[i]], near = (l.p.x - P.x) ** 2 + (l.p.z - P.z) ** 2 < 4900, f = !near ? 0 : l.fl ? (Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1) : 1; _v.copy(l.p).applyMatrix4(M); UW.uLP.value[i].set(_v.x, _v.y, _v.z, f); UW.uLC.value[i].set(l.c.r, l.c.g, l.c.b); }
   const lc = LGLOW.geometry.attributes.aC; LAMPS2.forEach((l, j) => { if (l.fl) { const f = Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1; lc.setXYZ(j, l.c.r * f, l.c.g * f, l.c.b * f); } }); lc.needsUpdate = true;
   const cp = CGLOW.geometry.attributes.position; RIV.forEach((r, j) => { r.g.updateMatrix(); [[-.55, .63, -1.97], [.55, .63, -1.97], [-.53, .66, 1.97], [.53, .66, 1.97]].forEach((q, n) => { _v.set(...q).applyMatrix4(r.g.matrix); cp.setXYZ(j * 4 + n, _v.x, _v.y, _v.z); }); }); cp.needsUpdate = true; }
+// ── the dome light: it comes on by itself when night falls (a warm cabin, the way a real car does it), and a tap on the lens turns it off or on. The screens and the LEDs glow regardless
+const DOME = { g: grp(cab, CX + .17, .335, -.43), on: 0, want: false, auto: false, l: new THREE.PointLight('#ffd29a', 0, 1.5, 1.6) };
+{ mesh(at(box(.11, .014, .06), 0, 0, 0), M.frame, DOME.g); DOME.lens = mesh(at(box(.085, .006, .04), 0, -.009, 0), lit({ color: '#ffe9c4' }), DOME.g); mesh(at(box(.012, .004, .008), .048, -.009, .02), M.alu, DOME.g); DOME.l.position.set(0, -.04, .05); DOME.g.add(DOME.l); }
+function dome(dt) { const nt = UW.uNight.value; if (G.phase === 'race' && nt > .6 && !DOME.auto) { DOME.auto = true; DOME.want = true; sfx('click', .6); } if (G.phase === 'crank' || G.phase === 'poster') DOME.auto = false;
+  const lp = DOME.g.localToWorld(_v4.set(0, -.012, 0)); rig.worldToLocal(lp); PH.forEach((h, i) => { if (h.ok && !h.on && tapped(HV[i], 'dome', lp, .05, h)) { DOME.want = !DOME.want; sfx('click'); } });
+  DOME.on += ((DOME.want ? 1 : 0) - DOME.on) * damp(dt, DOME.want ? .25 : .12); DOME.l.intensity = DOME.on * 1.15; DOME.lens.material.color.set('#ffe9c4').multiplyScalar(.12 + DOME.on * .95); DASHL[0].intensity *= 1 - DOME.on * .4; } // warm light washes out the neon a little

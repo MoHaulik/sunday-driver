@@ -63,10 +63,11 @@ p=instanceMatrix*p;n=mat3(instanceMatrix)*n;
 vC*=instanceColor;
 #endif
 vN=mat3(modelMatrix)*n;vUv=uv;vW=(modelMatrix*p).xyz;vec4 mv=modelViewMatrix*p;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const WFS = `${LIT}uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC;uniform float uFog,uNight;varying vec3 vC,vN,vW;varying vec2 vUv;varying float vD;
+const WFS = `${LIT}uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC,uHor;uniform float uFog,uNight;varying vec3 vC,vN,vW;varying vec2 vUv;varying float vD;
 void main(){vec3 a=vC,tx=vec3(0.);if(vUv.x>=0.){tx=texture2D(map,vUv).rgb;a*=tx;}float wg=step(.4,tx.b-tx.r)*step(.45,fract(sin(dot(floor(vUv*40.),vec2(12.9898,78.233)))*43758.5453))*uNight; // at night, about half the windows are lit (and the blue neon on the signs)
-vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d);
-gl_FragColor=vec4(mix(uFogC,a*(mix(uShC,uSunC,l)+nightLight(vW,n)*uNight)+vec3(1.,.78,.42)*wg,exp(-vD*uFog)),1.);}`;
+vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d)*.72+smoothstep(.42,.48,d)*.28;vec3 vv=normalize(cameraPosition-vW);float rim=pow(1.-abs(dot(n,vv)),3.); // form: a third band where light grazes, sky light from above, a rim that moves with your head
+
+gl_FragColor=vec4(mix(uFogC,a*(mix(uShC,uSunC,l)*(.9+.1*n.y)+uHor*rim*.2*(1.-uNight*.6)+(uNight>.001?nightLight(vW,n)*uNight:vec3(0.)))+vec3(1.,.78,.42)*wg,exp(-vD*uFog)),1.);}`;
 const wmat = (o = {}) => new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(ATL.tex) }, vertexShader: WVS, fragmentShader: WFS, vertexColors: true, ...STEN, ...o });
 const WM = wmat(), WM2 = wmat({ side: THREE.DoubleSide });
 const wmesh = (g, m = WM, p = world) => { const o = new THREE.Mesh(g, m); o.renderOrder = RO.world; p.add(o); return o; };
@@ -158,7 +159,7 @@ const PUD = [...Array(34)].map(() => ({ s: rnd(70, TL - 20), lat: rnd(-W + 1.6, 
           c=mix(c,c*.8,smoothstep(.36,.44,pd)*(1.-pm));c=mix(c,c*.6+rs*.3,uWet*.75*(1.-pm));c=mix(c,mix(c*.45,rs,fr),pm);sh*=1.-pm*.75;}}
       else{vec3 pave=vec3(.99,.87,.94)*(.94+.06*n2);vec2 g=abs(fract(vec2(s,al-W)/1.1)-.5);pave*=1.-.1*smoothstep(.44,.48,max(g.x,g.y));pave=mix(pave,vec3(.95,.94,.9),smoothstep(W+.6,W+.34,al));
         c=mix(mix(vec3(.56,.91,.35),vec3(.44,.86,.42),step(.5,n1*.6+n2*.4)),pave,vE.x);}
-      c*=mix(uSunC,uShC,sh)+nightLight(vW,vec3(0.,1.,0.))*uNight;gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog)),1.);}` })).frustumCulled = false; }
+      vec3 nl=uNight>.001?nightLight(vW,vec3(0.,1.,0.))*uNight:vec3(0.);c*=mix(uSunC,uShC,sh)+nl;if(uNight>.001&&al>W-.6&&al<W+.1){vec2 q=vec2((fract(s/12.)-.5)*12.,al-(W-.28));c+=vec3(1.,.7,.25)*(1.-smoothstep(.07,.13,length(q)))*min(dot(nl,vec3(.33))*14.,2.5);} /* cat's eyes: amber studs along the edges flare up as your beams reach them */gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog)),1.);}` })).frustumCulled = false; }
 
 // ── sea and sky
 wmesh(new THREE.PlaneGeometry(4200, 4200).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: UW, ...STEN,

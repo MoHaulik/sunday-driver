@@ -12,6 +12,20 @@ class Ribbon { constructor(n, hex, parent, w, tp = 1) { this.n = n; this.w = w; 
       if (nrm) _v.copy(nrm); else _v.subVectors(b, a).cross(ZA).normalize(); for (const [s, o] of [[-1, 0], [1, 3]]) { this.pos[i * 6 + o] = P[i].x + _v.x * h * s; this.pos[i * 6 + o + 1] = P[i].y + mid + _v.y * h * s; this.pos[i * 6 + o + 2] = P[i].z + _v.z * h * s; } }
     this.m.geometry.attributes.position.needsUpdate = true; this.m.geometry.setDrawRange(0, Math.max(0, L - 1) * 6); } }
 
+// ── clouds in 3D: real puffs out in the world, so they slide past each other as you drive and turn your head. Cel-shaded against the sun, a silver rim, a fat ink outline (the puffs again, inside out).
+// Three kinds, like the painted ones were: a classic puff, a tall tower, a long bank. At nightfall every puff shrinks to nothing and leaves the stars.
+const CLOUDS = (() => { const P2 = [], g = new THREE.Group(); g.position.set(60, 0, 120); world.add(g); let sd = 5; const r = (a = 0, b = 1) => { sd = sd * 16807 % 2147483647; return a + sd / 2147483647 * (b - a); };
+  const KIND = [[[-1.5, .2, .55], [-.75, .25, .68], [0, .2, .75], [.8, .22, .65], [1.5, .18, .5], [-.95, .75, .62], [-.15, .95, .78], [.65, .85, .62], [.1, 1.45, .55]], [[-1, .2, .6], [-.3, .2, .68], [.45, .22, .62], [1, .2, .52], [-.6, .85, .62], [.15, .95, .7], [.65, .85, .5], [-.2, 1.6, .58], [.3, 1.7, .55], [0, 2.3, .52]],
+    [...Array(10)].map((_, j) => j < 7 ? [(j - 3) * .55, .15, .38 + (j * 37 % 5) * .04] : [(j - 8) * .75, .55, .5 + (j % 2) * .1])];
+  const BASE = []; for (let k = 0; k < 22; k++) { const a = k / 22 * 6.283 + r(-.12, .12), R = r(200, 520), S = r(17, 30), h = r(70, 150), yaw = r(0, 6.28), kind = [0, 2, 1, 0, 0, 2, 1, 0, 2][k % 9], c = new V(Math.cos(a) * R, h, Math.sin(a) * R);
+    for (const [x, y, sz] of KIND[kind]) { const o = new V(x * S * 1.2, y * S, r(-.3, .3) * S).applyAxisAngle(YA, yaw); P2.push(new THREE.Matrix4().compose(o.add(c), new Qn().setFromEuler(new THREE.Euler(0, r(0, 6), 0)), new V(1, .9, 1).multiplyScalar(sz * S * r(.92, 1.08)))); BASE.push([h, S]); } }
+  const geo = new THREE.SphereGeometry(1, 14, 9), VS = (inflate) => `uniform float uNight;varying vec3 vN,vW;varying float vD,vH;void main(){vec3 p=position*(1.-uNight*.985)${inflate ? '+normal*(1.-uNight)*.07' : ''};vec4 l=instanceMatrix*vec4(p,1.);vH=(l.y-instanceColor.r*200.)/(instanceColor.g*40.);vec4 w=modelMatrix*l;vW=w.xyz;vN=normalize(mat3(modelMatrix)*mat3(instanceMatrix)*normal);vD=distance(cameraPosition,w.xyz);gl_Position=projectionMatrix*viewMatrix*w;}`;
+  const mk = (fs, side, inflate) => { const m = new THREE.InstancedMesh(geo, new THREE.ShaderMaterial({ uniforms: UW, vertexShader: VS(inflate), fragmentShader: fs, side, ...STEN }), P2.length); P2.forEach((q, i) => { m.setMatrixAt(i, q); m.setColorAt(i, _c.setRGB(BASE[i][0] / 200, BASE[i][1] / 40, 0)); }); m.frustumCulled = false; m.renderOrder = RO.world; g.add(m); return m; };
+  mk(`uniform vec3 uSun,uSunC,uCl,uCs,uFogC,uHor;uniform float uFog;varying vec3 vN,vW;varying float vD,vH;void main(){vec3 n=normalize(vN),v=normalize(cameraPosition-vW);float d=dot(n,uSun),b=smoothstep(-.12,-.06,d);
+    vec3 c=mix(mix(uCs,uCl,.5),uCl,b*.7+.3*smoothstep(.1,.9,vH)); // one shadow line per puff, and the whole cloud's belly goes lavender
+    c+=mix(uHor,uSunC,.5)*pow(1.-max(dot(n,v),0.),3.)*.35*smoothstep(-.3,.3,d);gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog*.45)),1.);}`, THREE.FrontSide); // cel-shaded with a silver lining
+  mk(`uniform vec3 uFogC,uCs;uniform float uFog;varying vec3 vN,vW;varying float vD,vH;void main(){gl_FragColor=vec4(mix(uFogC,mix(uCs,vec3(.11,.07,.2),.75),exp(-vD*uFog*.45)),1.);}`, THREE.BackSide, true); // the ink
+  return g; })();
 // ── Townsville across the bay. Not random boxes: seven kinds of building (deco setbacks, a Y2K capsule with a ring, glass slabs, a domed hall, a water-tower walk-up,
 // a billboard block and the NXT needle), each with a lit face, a shadow side, a highlight edge and a fat ink line. Two rows for depth, downtown clusters where it gets tall,
 // a hazy far city behind for parallax. At golden hour the windows come on.
@@ -72,7 +86,7 @@ function heartShow() { PPG.win = 0; FLY.forEach(f => { f.rb.pts.length = 0; f.rb
 
 function ppg(dt, sdt) {
   // the sky's mood paints the city: lit windows at golden hour, the sunburst stronger as the sun drops
-  const s = WX.w[0] + WX.w[1] + WX.w[2]; SKYL.forEach(o => o.material.uniforms.uGlow.value = (WX.w[2] + (WX.w[3] || 0) * 1.3) / s);
+  const s = WX.w.reduce((a, b) => a + b, 0) || 1; CLOUDS.rotation.y = T * .004; SKYL.forEach(o => o.material.uniforms.uGlow.value = (WX.w[2] + (WX.w[3] || 0) * 1.3) / s);
   // streaks behind rivals going flat out
   for (const [k, r] of RIV.entries()) { const t = RTR[k], fast = s01((r.v - 33) / 9) * (G.phase === 'race' || G.phase === 'finish' || G.phase === 'poster' ? 1 : 0); t.acc += sdt; if (t.acc > .045) { t.acc = 0; t.rb.push(_v.copy(r.g.position)); }
     t.rb.m.material.uniforms.uA.value += (fast * .9 - t.rb.m.material.uniforms.uA.value) * damp(dt, .25); t.rb.m.visible = t.rb.m.material.uniforms.uA.value > .01; if (t.rb.m.visible) t.rb.build(YA, .78); }

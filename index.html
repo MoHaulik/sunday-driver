@@ -144,8 +144,9 @@ vec3 sky(vec3 d,int o){float h=max(d.y,0.),ca=cos(uTime*.004),sa=sin(uTime*.004)
   c=mix(c,mix(c,vec3(.11,.07,.2),.55),smoothstep(r0-.0003-.0004*uNight,r0-.00015-.0002*uNight,sd)*(1.-sun)*mi);vec3 mp=(d-uSunT*sd)*260.;c=mix(c,mix(uSunC*1.25+.1,vec3(.96,.94,1.)*(1.-.22*smoothstep(.45,.75,vn(mp.xy*1.3+mp.z))-.1*vn(mp.xy*4.+mp.z)),uNight),sun*mi);
   if(o>0){vec3 ta=normalize(cross(uSunT,vec3(0.,1.,.001))),tb=cross(uSunT,ta);float ry=step(.5,fract(atan(dot(d,tb),dot(d,ta))*2.546+uTime*.012));c=mix(c,c*1.04+uSunC*.1,ry*smoothstep(.5,.97,sd)*(1.-smoothstep(.998,.9989,sd))*min(uSunI,1.)*(1.-uNight));} // the Townsville sunburst: sixteen slow rays round the sun
   if(o>0&&h>.15){vec2 q=d.xz/(1.+d.y)*34.,id=floor(q),f=fract(q)-.5;float r=h1(id);if(r>.93-.2*uNight){vec2 p=f-(vec2(h1(id+4.1),h1(id+8.3))-.5)*.5;float s=(1.-smoothstep(0.,.06,abs(p.x)*abs(p.y)*90.+length(p)*2.2))*(.55+.45*sin(uTime*2.+r*40.));c=mix(c,vec3(1.,.93,.98),s*smoothstep(.15-.12*uNight,.4-.3*uNight,h)*(.8+.2*uNight));}} // sparkles
+  if(o>0&&uNight>0.){float mw=dot(d,normalize(vec3(.35,.25,-.9)));c+=vec3(.5,.42,.95)*exp(-mw*mw/.03)*(vn(d.xz*18.+d.y*7.)*.7+.3)*uNight*.16*smoothstep(0.,.2,h);} // the milky way
   vec3 e=vec3(d.x*ca-d.z*sa,d.y,d.x*sa+d.z*ca),sh=vec3(uSunT.x*ca-uSunT.z*sa,uSunT.y,uSunT.x*sa+uSunT.z*ca);float k=1.+(.5-uCov)*.8,lw=.0045;vec3 ic=mix(uCs,vec3(.11,.07,.2),.75),cs=mix(uCs,uCl,.25);
-  for(int i=0;i<NC;i++){if(dot(e,CC[i*2].xyz)<CC[i*2].w-(k-1.)*.03)continue;vec2 g=cg(i,e,k);float yb=e.y-CC[i*2+1].x,G=min(g.x,yb);if(G<-lw)continue; // back to front: each cloud paints over the last, outline and all
+  for(int i=0;i<0;i++){if(dot(e,CC[i*2].xyz)<CC[i*2].w-(k-1.)*.03)continue;vec2 g=cg(i,e,k);float yb=e.y-CC[i*2+1].x,G=min(g.x,yb);if(G<-lw)continue; // back to front: each cloud paints over the last, outline and all
     float R=CC[i*2+1].z,lit=1.;if(o>0){vec3 s2=normalize(sh-e*dot(sh,e)+vec3(0.,.0001,0.)),q=normalize(e-s2*R*.22);vec2 g2=cg(i,q,k);lit=smoothstep(-.0005,.0005,min(g2.x,q.y-CC[i*2+1].x));} // cel shadow: where a step away from the sun leaves the cloud
     vec3 cc=mix(cs,uCl,lit);cc=mix(cc,mix(cs,ic,.18),1.-smoothstep(.0,.006,yb)); // a darker band along the flat bottom
     float cr=(1.-smoothstep(.0009,.0021,abs(g.x-g.y)))*step(0.,g.y)*(1.-smoothstep(R*.03,R*.065,G))*smoothstep(R*.3,R*.45,yb); // a short ink hook where two bumps meet, near the edge only
@@ -154,13 +155,13 @@ vec3 sky(vec3 d,int o){float h=max(d.y,0.),ca=cos(uTime*.004),sa=sin(uTime*.004)
 const u = v => ({ value: v }), col = h => new C(h);
 // night light, in scene space: seven pairs of headlights (cone, soft edge, hot centre) and the eight street lamps nearest you
 const LIT = `uniform vec4 uHL[7],uHD[7],uLP[8];uniform vec3 uLC[8];
-vec3 nightLight(vec3 w,vec3 n){vec3 s=vec3(0.);for(int i=0;i<7;i++){vec3 L=w-uHL[i].xyz;float d=length(L)+.01;vec3 l=L/d;float k=dot(l,uHD[i].xyz),cn=smoothstep(.8,.92,k)*.5+smoothstep(.93,.99,k)*.7;s+=vec3(1.,.93,.8)*cn*uHL[i].w*(max(dot(n,-l),0.)*.7+.3)*30./(9.+d*d);}
-  for(int i=0;i<8;i++){vec3 L=uLP[i].xyz-w;float d=length(L)+.01;s+=uLC[i]*uLP[i].w*(max(dot(n,L/d),0.)*.75+.25)*11./(5.+d*d*1.4);}return s;}`;
+vec3 nightLight(vec3 w,vec3 n){vec3 s=vec3(0.);for(int i=0;i<7;i++){if(uHL[i].w<=0.)continue;vec3 L=w-uHL[i].xyz;float d=length(L)+.01;vec3 l=L/d;float k=dot(l,uHD[i].xyz),cn=smoothstep(.82,.92,k)*.35+smoothstep(.92,.985,k)*.9;s+=vec3(1.,.93,.8)*cn*uHL[i].w*(max(dot(n,-l),0.)*.7+.3)*70./(14.+d*d*.45);}
+  for(int i=0;i<8;i++){if(uLP[i].w<=0.)continue;vec3 L=uLP[i].xyz-w;float d=length(L)+.01;s+=uLC[i]*uLP[i].w*(max(dot(n,L/d),0.)*.75+.25)*11./(5.+d*d*1.4);}return s;}`;
 const UW = { uSun: u(new V(0, 1, 0)), uSunT: u(new V(0, 1, 0)), uSunC: u(col('#fff')), uShC: u(col('#fff')), uFogC: u(col('#fff')), uZen: u(col('#fff')), uHor: u(col('#fff')), uCl: u(col('#fff')), uCs: u(col('#fff')), uSeaA: u(col('#fff')), uSeaB: u(col('#fff')),
   uFog: u(.0016), uNight: u(0), uHL: u([...Array(7)].map(() => new THREE.Vector4())), uHD: u([...Array(7)].map(() => new THREE.Vector4())), uLP: u([...Array(8)].map(() => new THREE.Vector4())), uLC: u([...Array(8)].map(() => new V())), uCov: u(.5), uSunI: u(1), uWet: u(0), uTime: u(0), uEye: u(new V()) };
 //           day        rain       golden hour
-const LOOK = { uSunC: ['#fffdf6', '#c6bcdc', '#ffb884', '#5163b4'], uShC: ['#b891ea', '#8f84b8', '#a264cc', '#17153f'], uZen: ['#3fc4f7', '#7a6cab', '#7446d2', '#0b0930'], uHor: ['#ffd3ec', '#cbbbe0', '#ff9cc6', '#3d2a86'], uCl: ['#ffffff', '#e0d6ee', '#ffe3c4', '#9d93d8'], uCs: ['#ffbfe2', '#a797c8', '#ff8cba', '#3b3480'],
-  uFogC: ['#ffdcef', '#c6b6dc', '#ffaecb', '#231a5c'], uSeaA: ['#45e3d6', '#8088bc', '#ff98ac', '#26357e'], uSeaB: ['#2f93f2', '#5c5ea0', '#7a4cc4', '#0c1046'] }, LOOKN = { uFog: [.0016, .0048, .0021, .0026], uCov: [.5, .16, .46, .52], uSunI: [1, 0, 1.25, .5], uWet: [0, 1, .2, .25] };
+const LOOK = { uSunC: ['#fffdf6', '#c6bcdc', '#ffb884', '#28336e'], uShC: ['#b891ea', '#8f84b8', '#a264cc', '#0a0922'], uZen: ['#3fc4f7', '#7a6cab', '#7446d2', '#04031a'], uHor: ['#ffd3ec', '#cbbbe0', '#ff9cc6', '#1e1450'], uCl: ['#ffffff', '#e0d6ee', '#ffe3c4', '#5a5296'], uCs: ['#ffbfe2', '#a797c8', '#ff8cba', '#1f1b4a'],
+  uFogC: ['#ffdcef', '#c6b6dc', '#ffaecb', '#0d0a2a'], uSeaA: ['#45e3d6', '#8088bc', '#ff98ac', '#141c4c'], uSeaB: ['#2f93f2', '#5c5ea0', '#7a4cc4', '#05061e'] }, LOOKN = { uFog: [.0016, .0048, .0021, .0026], uCov: [.5, .16, .46, .52], uSunI: [1, 0, 1.25, .5], uWet: [0, 1, .2, .25] };
 for (const k in LOOK) LOOK[k] = LOOK[k].map(col);
 const SUND = [new V(.42, .78, .46).normalize(), new V(.42, .78, .46).normalize(), new V(-.82, .17, .5).normalize(), new V(.85, .26, .45).normalize()]; // day, rain, golden hour, and the moon
 const WX = { w: [1, 0, 0, 0], t: [1, 0, 0], rain: 0, sink: 0 }; // four looks: day, rain, golden hour, night. sink: how far the golden sun has gone down
@@ -261,10 +262,11 @@ p=instanceMatrix*p;n=mat3(instanceMatrix)*n;
 vC*=instanceColor;
 #endif
 vN=mat3(modelMatrix)*n;vUv=uv;vW=(modelMatrix*p).xyz;vec4 mv=modelViewMatrix*p;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const WFS = `${LIT}uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC;uniform float uFog,uNight;varying vec3 vC,vN,vW;varying vec2 vUv;varying float vD;
+const WFS = `${LIT}uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC,uHor;uniform float uFog,uNight;varying vec3 vC,vN,vW;varying vec2 vUv;varying float vD;
 void main(){vec3 a=vC,tx=vec3(0.);if(vUv.x>=0.){tx=texture2D(map,vUv).rgb;a*=tx;}float wg=step(.4,tx.b-tx.r)*step(.45,fract(sin(dot(floor(vUv*40.),vec2(12.9898,78.233)))*43758.5453))*uNight; // at night, about half the windows are lit (and the blue neon on the signs)
-vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d);
-gl_FragColor=vec4(mix(uFogC,a*(mix(uShC,uSunC,l)+nightLight(vW,n)*uNight)+vec3(1.,.78,.42)*wg,exp(-vD*uFog)),1.);}`;
+vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d)*.72+smoothstep(.42,.48,d)*.28;vec3 vv=normalize(cameraPosition-vW);float rim=pow(1.-abs(dot(n,vv)),3.); // form: a third band where light grazes, sky light from above, a rim that moves with your head
+
+gl_FragColor=vec4(mix(uFogC,a*(mix(uShC,uSunC,l)*(.9+.1*n.y)+uHor*rim*.2*(1.-uNight*.6)+(uNight>.001?nightLight(vW,n)*uNight:vec3(0.)))+vec3(1.,.78,.42)*wg,exp(-vD*uFog)),1.);}`;
 const wmat = (o = {}) => new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(ATL.tex) }, vertexShader: WVS, fragmentShader: WFS, vertexColors: true, ...STEN, ...o });
 const WM = wmat(), WM2 = wmat({ side: THREE.DoubleSide });
 const wmesh = (g, m = WM, p = world) => { const o = new THREE.Mesh(g, m); o.renderOrder = RO.world; p.add(o); return o; };
@@ -356,7 +358,7 @@ const PUD = [...Array(34)].map(() => ({ s: rnd(70, TL - 20), lat: rnd(-W + 1.6, 
           c=mix(c,c*.8,smoothstep(.36,.44,pd)*(1.-pm));c=mix(c,c*.6+rs*.3,uWet*.75*(1.-pm));c=mix(c,mix(c*.45,rs,fr),pm);sh*=1.-pm*.75;}}
       else{vec3 pave=vec3(.99,.87,.94)*(.94+.06*n2);vec2 g=abs(fract(vec2(s,al-W)/1.1)-.5);pave*=1.-.1*smoothstep(.44,.48,max(g.x,g.y));pave=mix(pave,vec3(.95,.94,.9),smoothstep(W+.6,W+.34,al));
         c=mix(mix(vec3(.56,.91,.35),vec3(.44,.86,.42),step(.5,n1*.6+n2*.4)),pave,vE.x);}
-      c*=mix(uSunC,uShC,sh)+nightLight(vW,vec3(0.,1.,0.))*uNight;gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog)),1.);}` })).frustumCulled = false; }
+      vec3 nl=uNight>.001?nightLight(vW,vec3(0.,1.,0.))*uNight:vec3(0.);c*=mix(uSunC,uShC,sh)+nl;if(uNight>.001&&al>W-.6&&al<W+.1){vec2 q=vec2((fract(s/12.)-.5)*12.,al-(W-.28));c+=vec3(1.,.7,.25)*(1.-smoothstep(.07,.13,length(q)))*min(dot(nl,vec3(.33))*14.,2.5);} /* cat's eyes: amber studs along the edges flare up as your beams reach them */gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog)),1.);}` })).frustumCulled = false; }
 
 // ── sea and sky
 wmesh(new THREE.PlaneGeometry(4200, 4200).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: UW, ...STEN,
@@ -1158,6 +1160,20 @@ class Ribbon { constructor(n, hex, parent, w, tp = 1) { this.n = n; this.w = w; 
       if (nrm) _v.copy(nrm); else _v.subVectors(b, a).cross(ZA).normalize(); for (const [s, o] of [[-1, 0], [1, 3]]) { this.pos[i * 6 + o] = P[i].x + _v.x * h * s; this.pos[i * 6 + o + 1] = P[i].y + mid + _v.y * h * s; this.pos[i * 6 + o + 2] = P[i].z + _v.z * h * s; } }
     this.m.geometry.attributes.position.needsUpdate = true; this.m.geometry.setDrawRange(0, Math.max(0, L - 1) * 6); } }
 
+// ── clouds in 3D: real puffs out in the world, so they slide past each other as you drive and turn your head. Cel-shaded against the sun, a silver rim, a fat ink outline (the puffs again, inside out).
+// Three kinds, like the painted ones were: a classic puff, a tall tower, a long bank. At nightfall every puff shrinks to nothing and leaves the stars.
+const CLOUDS = (() => { const P2 = [], g = new THREE.Group(); g.position.set(60, 0, 120); world.add(g); let sd = 5; const r = (a = 0, b = 1) => { sd = sd * 16807 % 2147483647; return a + sd / 2147483647 * (b - a); };
+  const KIND = [[[-1.5, .2, .55], [-.75, .25, .68], [0, .2, .75], [.8, .22, .65], [1.5, .18, .5], [-.95, .75, .62], [-.15, .95, .78], [.65, .85, .62], [.1, 1.45, .55]], [[-1, .2, .6], [-.3, .2, .68], [.45, .22, .62], [1, .2, .52], [-.6, .85, .62], [.15, .95, .7], [.65, .85, .5], [-.2, 1.6, .58], [.3, 1.7, .55], [0, 2.3, .52]],
+    [...Array(10)].map((_, j) => j < 7 ? [(j - 3) * .55, .15, .38 + (j * 37 % 5) * .04] : [(j - 8) * .75, .55, .5 + (j % 2) * .1])];
+  const BASE = []; for (let k = 0; k < 22; k++) { const a = k / 22 * 6.283 + r(-.12, .12), R = r(200, 520), S = r(17, 30), h = r(70, 150), yaw = r(0, 6.28), kind = [0, 2, 1, 0, 0, 2, 1, 0, 2][k % 9], c = new V(Math.cos(a) * R, h, Math.sin(a) * R);
+    for (const [x, y, sz] of KIND[kind]) { const o = new V(x * S * 1.2, y * S, r(-.3, .3) * S).applyAxisAngle(YA, yaw); P2.push(new THREE.Matrix4().compose(o.add(c), new Qn().setFromEuler(new THREE.Euler(0, r(0, 6), 0)), new V(1, .9, 1).multiplyScalar(sz * S * r(.92, 1.08)))); BASE.push([h, S]); } }
+  const geo = new THREE.SphereGeometry(1, 14, 9), VS = (inflate) => `uniform float uNight;varying vec3 vN,vW;varying float vD,vH;void main(){vec3 p=position*(1.-uNight*.985)${inflate ? '+normal*(1.-uNight)*.07' : ''};vec4 l=instanceMatrix*vec4(p,1.);vH=(l.y-instanceColor.r*200.)/(instanceColor.g*40.);vec4 w=modelMatrix*l;vW=w.xyz;vN=normalize(mat3(modelMatrix)*mat3(instanceMatrix)*normal);vD=distance(cameraPosition,w.xyz);gl_Position=projectionMatrix*viewMatrix*w;}`;
+  const mk = (fs, side, inflate) => { const m = new THREE.InstancedMesh(geo, new THREE.ShaderMaterial({ uniforms: UW, vertexShader: VS(inflate), fragmentShader: fs, side, ...STEN }), P2.length); P2.forEach((q, i) => { m.setMatrixAt(i, q); m.setColorAt(i, _c.setRGB(BASE[i][0] / 200, BASE[i][1] / 40, 0)); }); m.frustumCulled = false; m.renderOrder = RO.world; g.add(m); return m; };
+  mk(`uniform vec3 uSun,uSunC,uCl,uCs,uFogC,uHor;uniform float uFog;varying vec3 vN,vW;varying float vD,vH;void main(){vec3 n=normalize(vN),v=normalize(cameraPosition-vW);float d=dot(n,uSun),b=smoothstep(-.12,-.06,d);
+    vec3 c=mix(mix(uCs,uCl,.5),uCl,b*.7+.3*smoothstep(.1,.9,vH)); // one shadow line per puff, and the whole cloud's belly goes lavender
+    c+=mix(uHor,uSunC,.5)*pow(1.-max(dot(n,v),0.),3.)*.35*smoothstep(-.3,.3,d);gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog*.45)),1.);}`, THREE.FrontSide); // cel-shaded with a silver lining
+  mk(`uniform vec3 uFogC,uCs;uniform float uFog;varying vec3 vN,vW;varying float vD,vH;void main(){gl_FragColor=vec4(mix(uFogC,mix(uCs,vec3(.11,.07,.2),.75),exp(-vD*uFog*.45)),1.);}`, THREE.BackSide, true); // the ink
+  return g; })();
 // ── Townsville across the bay. Not random boxes: seven kinds of building (deco setbacks, a Y2K capsule with a ring, glass slabs, a domed hall, a water-tower walk-up,
 // a billboard block and the NXT needle), each with a lit face, a shadow side, a highlight edge and a fat ink line. Two rows for depth, downtown clusters where it gets tall,
 // a hazy far city behind for parallax. At golden hour the windows come on.
@@ -1218,7 +1234,7 @@ function heartShow() { PPG.win = 0; FLY.forEach(f => { f.rb.pts.length = 0; f.rb
 
 function ppg(dt, sdt) {
   // the sky's mood paints the city: lit windows at golden hour, the sunburst stronger as the sun drops
-  const s = WX.w[0] + WX.w[1] + WX.w[2]; SKYL.forEach(o => o.material.uniforms.uGlow.value = (WX.w[2] + (WX.w[3] || 0) * 1.3) / s);
+  const s = WX.w.reduce((a, b) => a + b, 0) || 1; CLOUDS.rotation.y = T * .004; SKYL.forEach(o => o.material.uniforms.uGlow.value = (WX.w[2] + (WX.w[3] || 0) * 1.3) / s);
   // streaks behind rivals going flat out
   for (const [k, r] of RIV.entries()) { const t = RTR[k], fast = s01((r.v - 33) / 9) * (G.phase === 'race' || G.phase === 'finish' || G.phase === 'poster' ? 1 : 0); t.acc += sdt; if (t.acc > .045) { t.acc = 0; t.rb.push(_v.copy(r.g.position)); }
     t.rb.m.material.uniforms.uA.value += (fast * .9 - t.rb.m.material.uniforms.uA.value) * damp(dt, .25); t.rb.m.visible = t.rb.m.material.uniforms.uA.value > .01; if (t.rb.m.visible) t.rb.build(YA, .78); }
@@ -1407,7 +1423,7 @@ function skylife(dt) { const S = SKYLIFE;
 
 // ═══════════════════════════ NIGHT (level two): neon street lamps, headlights that really light the road, beams in the air, tail lights, a glow in the cabin ═══════════════════════════
 const LAMPS2 = [], LCOL = [col('#ff5fc8'), col('#4fe0ff')];
-{ const b = new MB(), ink = col('#2a1d4a'); for (let i = 3, k = 0; i < N; i += 14, k++) { const side = k % 2 ? 1 : -1, lat = (W + (ZONE[i] === 1 ? .3 : 1.2)) * side, x = SX[i] - TZ[i] * lat, z = SZ[i] + TX[i] * lat, y = SY[i], ix2 = TZ[i] * side, iz2 = -TX[i] * side;
+{ const b = new MB(), ink = col('#2a1d4a'); for (let i = 3, k = 0; i < N; i += 14, k++) { if (!ZONE[i]) continue; const side = k % 2 ? 1 : -1, lat = (W + (ZONE[i] === 1 ? .3 : 1.2)) * side, x = SX[i] - TZ[i] * lat, z = SZ[i] + TX[i] * lat, y = SY[i], ix2 = TZ[i] * side, iz2 = -TX[i] * side;
     const top = new V(x, y + 5.6, z), head = new V(x + ix2 * 1.5, y + 5.5, z + iz2 * 1.5); b.add(bar(new V(x, y, z), top, .16), new THREE.Matrix4(), ink).add(bar(top, head, .1), new THREE.Matrix4(), ink).add(new THREE.SphereGeometry(.28, 10, 6).scale(1.3, .6, 1.3), M4(head.x, head.y - .1, head.z), col('#f6f0ff'));
     LAMPS2.push({ p: new V(head.x, head.y - .35, head.z), c: LCOL[k % 2], fl: k % 7 === 3 }); } // one in seven is a dodgy neon that flickers
   wmesh(b.geo()).frustumCulled = false; }
@@ -1426,12 +1442,18 @@ const DASHL = [new THREE.PointLight('#ff5fd0', 0, 1.1), new THREE.PointLight('#4
 const LSORT = LAMPS2.map((l, k) => k);
 function night(dt) { const nt = UW.uNight.value; DASHL[0].intensity = nt * 1.3; DASHL[1].intensity = nt * .9; MYBEAM.visible = nt > .01; if (nt < .01) return;
   const HL = UW.uHL.value, HD = UW.uHD.value, M = world.matrixWorld; let k = 0;
-  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, ps = c === P ? P.psi : o.psi, fx = Math.sin(ps), fz = -Math.cos(ps); _v.set(o.x + fx * 2.1, (o.y || 0) + .7, o.z + fz * 2.1).applyMatrix4(M); _v2.set(fx, -.09, fz).transformDirection(M); HL[k].set(_v.x, _v.y, _v.z, 1); HD[k].set(_v2.x, _v2.y, _v2.z, 0); k++; }
+  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, ps = c === P ? P.psi : o.psi, fx = Math.sin(ps), fz = -Math.cos(ps), far = c !== P && Math.hypot(o.x - P.x, o.z - P.z) > 110; _v.set(o.x + fx * 2.1, (o.y || 0) + .7, o.z + fz * 2.1).applyMatrix4(M); _v2.set(fx, -.07, fz).transformDirection(M); HL[k].set(_v.x, _v.y, _v.z, far ? 0 : c === P ? 1.25 : 1); /* cars far away cost nothing */ HD[k].set(_v2.x, _v2.y, _v2.z, 0); k++; }
   MYBEAM.position.set(P.x, P.y, P.z); MYBEAM.rotation.set(0, -P.psi, 0);
   LSORT.sort((a, b) => (LAMPS2[a].p.x - P.x) ** 2 + (LAMPS2[a].p.z - P.z) ** 2 - (LAMPS2[b].p.x - P.x) ** 2 - (LAMPS2[b].p.z - P.z) ** 2); // the eight lamps nearest you light the scene
-  for (let i = 0; i < 8; i++) { const l = LAMPS2[LSORT[i]], f = l.fl ? (Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1) : 1; _v.copy(l.p).applyMatrix4(M); UW.uLP.value[i].set(_v.x, _v.y, _v.z, f); UW.uLC.value[i].set(l.c.r, l.c.g, l.c.b); }
+  for (let i = 0; i < 8; i++) { const l = LAMPS2[LSORT[i]], near = (l.p.x - P.x) ** 2 + (l.p.z - P.z) ** 2 < 4900, f = !near ? 0 : l.fl ? (Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1) : 1; _v.copy(l.p).applyMatrix4(M); UW.uLP.value[i].set(_v.x, _v.y, _v.z, f); UW.uLC.value[i].set(l.c.r, l.c.g, l.c.b); }
   const lc = LGLOW.geometry.attributes.aC; LAMPS2.forEach((l, j) => { if (l.fl) { const f = Math.sin(T * 23) * Math.sin(T * 7.3) > .25 ? .15 : 1; lc.setXYZ(j, l.c.r * f, l.c.g * f, l.c.b * f); } }); lc.needsUpdate = true;
   const cp = CGLOW.geometry.attributes.position; RIV.forEach((r, j) => { r.g.updateMatrix(); [[-.55, .63, -1.97], [.55, .63, -1.97], [-.53, .66, 1.97], [.53, .66, 1.97]].forEach((q, n) => { _v.set(...q).applyMatrix4(r.g.matrix); cp.setXYZ(j * 4 + n, _v.x, _v.y, _v.z); }); }); cp.needsUpdate = true; }
+// ── the dome light: it comes on by itself when night falls (a warm cabin, the way a real car does it), and a tap on the lens turns it off or on. The screens and the LEDs glow regardless
+const DOME = { g: grp(cab, CX + .17, .335, -.43), on: 0, want: false, auto: false, l: new THREE.PointLight('#ffd29a', 0, 1.5, 1.6) };
+{ mesh(at(box(.11, .014, .06), 0, 0, 0), M.frame, DOME.g); DOME.lens = mesh(at(box(.085, .006, .04), 0, -.009, 0), lit({ color: '#ffe9c4' }), DOME.g); mesh(at(box(.012, .004, .008), .048, -.009, .02), M.alu, DOME.g); DOME.l.position.set(0, -.04, .05); DOME.g.add(DOME.l); }
+function dome(dt) { const nt = UW.uNight.value; if (G.phase === 'race' && nt > .6 && !DOME.auto) { DOME.auto = true; DOME.want = true; sfx('click', .6); } if (G.phase === 'crank' || G.phase === 'poster') DOME.auto = false;
+  const lp = DOME.g.localToWorld(_v4.set(0, -.012, 0)); rig.worldToLocal(lp); PH.forEach((h, i) => { if (h.ok && !h.on && tapped(HV[i], 'dome', lp, .05, h)) { DOME.want = !DOME.want; sfx('click'); } });
+  DOME.on += ((DOME.want ? 1 : 0) - DOME.on) * damp(dt, DOME.want ? .25 : .12); DOME.l.intensity = DOME.on * 1.15; DOME.lens.material.color.set('#ffe9c4').multiplyScalar(.12 + DOME.on * .95); DASHL[0].intensity *= 1 - DOME.on * .4; } // warm light washes out the neon a little
 
 // ═══════════════════════════ LOOP ═══════════════════════════
 const mouse = new THREE.Vector2();
@@ -1444,7 +1466,7 @@ function loop() {
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
   const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
-  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); mirrors();
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); mirrors();
   renderer.render(scene, camera);
 }
 
