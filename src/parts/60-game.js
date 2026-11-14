@@ -55,7 +55,7 @@ function drive(dt) {
   P.prog += locate(P);
   const i = P.i, nx = -TZ[i], nz = TX[i], over = P.lat > LR[i] ? P.lat - LR[i] : P.lat < -LL[i] ? P.lat + LL[i] : 0;
   if (over) { P.x -= nx * over; P.z -= nz * over; P.lat -= over; const vn = P.vx * nx + P.vz * nz; if (vn * over > 0) { const hit = Math.abs(vn), k = 1 - clamp(hit * .03, .01, .28); P.vx = (P.vx - nx * vn * 1.2) * k; P.vz = (P.vz - nz * vn * 1.2) * k; // a wall: slide along it, lose some speed, and the nose comes round
-      P.psi += wrapPi(Math.atan2(TX[i], -TZ[i]) - P.psi) * clamp(hit * .05, .02, .45); P.yaw *= .5; P.clean = 0; if (T > P.hitT) { P.hitT = T + .16; P.shake = Math.min(1, P.shake + hit * .12); sfx(hit > 4 ? 'bump' : 'scrape', clamp(hit * .15, .3, 1)); if (hit > 2.2) mirrorBreak(over > 0 ? 1 : 0);
+      P.psi += wrapPi(Math.atan2(TX[i], -TZ[i]) - P.psi) * clamp(hit * .05, .02, .45); P.yaw *= .5; P.clean = 0; if (T > P.hitT) { P.hitT = T + .16; P.shake = Math.min(1, P.shake + hit * .12); sfx(hit > 4 ? 'bump' : 'scrape', clamp(hit * .15, .3, 1)); if (hit > 2.2) mirrorBreak(over > 0 ? 1 : 0); wallHit(hit, Math.sign(over), nx, nz);
         for (let q = 0; q < 6 + hit; q++) parts.emit(_v.set(P.x + nx * Math.sign(over) * .9 + rand(-.6, .6) * fx, P.y + rand(.2, .6), P.z + nz * Math.sign(over) * .9 + rand(-.6, .6) * fz), _v2.set(P.vx * .6 + rand(-2, 2), rand(1, 4), P.vz * .6 + rand(-2, 2)), _c.set('#ffc46b'), { life: rand(.2, .5), size: .035, glow: 1 }); } } }
   if (drift && P.slip > 1.5) { P.charge = Math.min(2, P.charge + dt); if (Math.random() < dt * 30) parts.emit(_v.set(P.x - fx * 1.6 + rand(-.7, .7) * rx, P.y + .15, P.z - fz * 1.6 + rand(-.7, .7) * rz), _v2.set(rand(-1, 1), rand(.5, 1.5), rand(-1, 1)), _c.set('#e9e6ee'), { life: rand(.5, .9), size: .5, grav: -1, a: .5 }); }
   else if (!drift && P.charge > 0) { if (P.charge > .45) { P.boost = .7 + P.charge * .7; sfx('boost'); say('DRIFT BOOST', 1.4); } P.charge = 0; } P.boost = Math.max(0, P.boost - dt);
@@ -75,9 +75,9 @@ function updRivals(dt, racing) {
       if (o !== P && Math.abs(d) < 4.3 && Math.abs(dl) < 1.85) r.lat -= Math.sign(dl || 1) * dt * 2; }
     r.lt = clamp(lt, -W + 1.3, W - 1.3); r.lat += clamp(r.lt - r.lat, -3.4 * dt, 3.4 * dt); r.v += clamp(vt - r.v, -13 * dt, CFG.AI.acc * dt); r.v = Math.max(0, r.v); r.prog += r.v * dt;
     // you and it
-    const d = r.prog - P.prog, dl = r.lat - P.lat; if (Math.abs(d) < 4.1 && Math.abs(dl) < 1.8) { const px = 4.1 - Math.abs(d), pl = 1.8 - Math.abs(dl), rxv = -TZ[P.i], rzv = TX[P.i], sg = Math.sign(dl || 1);
+    const d = r.prog - P.prog, dl = r.lat - P.lat; if (Math.abs(d) < 4.1 && Math.abs(dl) < 1.8) { const px = 4.1 - Math.abs(d), pl = 1.8 - Math.abs(dl), rxv = -TZ[P.i], rzv = TX[P.i], sg = Math.sign(dl || 1), imp = Math.abs(P.vf - r.v) + (pl / 1.8 < px / 4.1 ? 2.5 + Math.abs(P.yaw) * 4 : 0);
       if (pl / 1.8 < px / 4.1) { if (Math.abs(d) < 2.8) { mirrorBreak(dl > 0 ? 1 : 0); rivMirror(r, dl > 0 ? 0 : 1); } r.lat += sg * pl * .6; P.x -= rxv * sg * pl * .4; P.z -= rzv * sg * pl * .4; P.vx -= rxv * sg * 1.2; P.vz -= rzv * sg * 1.2; } else if (d > 0) { const dv = P.vf - r.v; if (dv > 0) { const k = (r.v + .5) / Math.max(P.vf, 1); P.vx *= k; P.vz *= k; r.v += dv * .5; } r.prog += px * .5; } else { r.v = Math.min(r.v, P.vf - .5); r.prog -= px * .5; }
-      if (T > P.hitT) { P.hitT = T + .35; P.shake = Math.min(1, P.shake + .5); sfx('bump', .7); P.clean = 0; } }
+      if (T > P.hitT) carHit(r, imp, sg); }
     if (d > 2 && d < 20 && Math.abs(dl) < 1.5 && P.vf > 20) draft = 1;
     const o = trackAt(r.prog, r.lat, r.o); r.g.position.set(o.x, o.y, o.z); r.g.rotation.set(Math.atan(o.slope), -o.psi - (r.lt - r.lat) * .035, 0); r.s = r.prog;
     if (WX.rain > .3 && r.v > 15 && Math.abs(d) < 60 && Math.random() < dt * 25) parts.emit(_v.set(o.x + rand(-.8, .8), o.y + .2, o.z + rand(-.8, .8)), _v2.set(rand(-1, 1), rand(1, 2.5), rand(-1, 1)), _c.set('#cfdde8'), { life: rand(.5, 1), size: .7, grav: 1, a: .35 });

@@ -71,6 +71,7 @@ const WM = wmat(), WM2 = wmat({ side: THREE.DoubleSide });
 const wmesh = (g, m = WM, p = world) => { const o = new THREE.Mesh(g, m); o.renderOrder = RO.world; p.add(o); return o; };
 
 // ── the town, built along the samples
+let TREEM; // the trees, so a hit can shake them
 const stat = new MB(), SHADE = [], TREES = [], POLES = [], sdir = new V(-SUND[0].x, 0, -SUND[0].z).normalize(), ROOFS = ['#ff5fa8', '#35b8ff', '#8a5cff', '#2fd6a0', '#ff8a3c', '#3a2a5c'];
 function building(x, y, z, ry, w, d, fl) { const t = rpick(fl === 1 ? T1 : fl === 2 ? T2 : T3), h = fl * 3.25 + .5, m = M4(x, y, z, ry), wall = TILE[t].wall, rc = col(rpick(ROOFS)), P = (a, b, c) => new V(a, b, c).applyMatrix4(m);
   stat.box(M4(x, y - 4, z, ry), w, 4, d, wall); stat.box(m, w, h, d, wall, { front: tileUV(t), suv: tileUV(t, .02, 0, .3, 1), top: col('#b9b4ad') });
@@ -120,7 +121,7 @@ wmesh(stat.geo(), WM2).frustumCulled = false;
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#1d1233', ...STEN })); l.renderOrder = RO.world; l.frustumCulled = false; world.add(l); }
 { const b = new MB(), g1 = col('#7be04a'), g2 = col('#a8f25c'), g3 = col('#3fc98a'); // one tree, drawn four hundred times
   b.add(new THREE.CylinderGeometry(.16, .26, 2.8, 5, 1, true), M4(0, 1.4, 0), col('#6a3fa0')).add(new THREE.IcosahedronGeometry(1.9, 1), M4(0, 3.9, 0), g1).add(new THREE.IcosahedronGeometry(1.3, 0), M4(1.2, 3.1, .4), g3).add(new THREE.IcosahedronGeometry(1.35, 0), M4(-.9, 3.3, -.6), g2).add(new THREE.IcosahedronGeometry(1.1, 0), M4(.2, 5.1, .3), g2);
-  const im = new THREE.InstancedMesh(b.geo(), WM, TREES.length); TREES.forEach((t, k) => { im.setMatrixAt(k, M4(t[0], t[1], t[2], t[4], t[3], t[3] * t[5])); im.setColorAt(k, _c.setRGB(t[7], t[6], t[7] * .9)); if (nearest(t[0], t[2]).d < W + 11) SHADE.push([t[0] + sdir.x * 3.5, t[2] + sdir.z * 3.5, 2.6 * t[3] + 2.2]); });
+  const im = new THREE.InstancedMesh(b.geo(), WM, TREES.length); TREEM = im; TREES.forEach((t, k) => { im.setMatrixAt(k, M4(t[0], t[1], t[2], t[4], t[3], t[3] * t[5])); im.setColorAt(k, _c.setRGB(t[7], t[6], t[7] * .9)); if (nearest(t[0], t[2]).d < W + 11) SHADE.push([t[0] + sdir.x * 3.5, t[2] + sdir.z * 3.5, 2.6 * t[3] + 2.2]); });
   im.renderOrder = RO.world; im.frustumCulled = false; world.add(im); }
 const MILLS = [[-262, -78], [-300, -8], [-236, -150]].map(([x, z], k) => { const y = hill(x, z), b = new MB(), g = new THREE.Group(); stat2add(x, y, z); for (let a = 0; a < 3; a++) b.add(new THREE.BoxGeometry(.7, 13, .18), new THREE.Matrix4().makeRotationZ(a * 2.094).multiply(new THREE.Matrix4().makeTranslation(0, 6.8, 0)), WHITE); g.add(wmesh(b.geo(), WM, g)); g.position.set(x, y + 27, z + 1.4); world.add(g); return g; });
 function stat2add(x, y, z) { const b = new MB(); b.add(new THREE.CylinderGeometry(.5, 1.1, 27, 8), M4(x, y + 13.5, z), WHITE).add(new THREE.BoxGeometry(1.2, 1.2, 3), M4(x, y + 27, z), WHITE); wmesh(b.geo()); }
