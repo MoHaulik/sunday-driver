@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><title>Sunday Driver | WebXR Mixed Reality Racing</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="description" content="Sunday Driver is a free WebXR mixed-reality racing game for Meta Quest 3. A dashboard appears in your room, the wipers sweep, and behind the windscreen there is another world. Grab the wheel with your bare hands: one driver against six. A NXT/WebXR production.">
+<link rel="canonical" href="https://www.nxtwebxr.com/sundaydriver/"><meta property="og:url" content="https://www.nxtwebxr.com/sundaydriver/"><meta property="og:type" content="website"><meta property="og:title" content="Sunday Driver"><meta property="og:description" content="A dashboard appears in your room, the wipers sweep, and behind the windscreen there is another world. Free WebXR mixed-reality racing, played with your bare hands. A NXT/WebXR production."><meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#07080b"><link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800&family=Chakra+Petch:ital,wght@0,500;0,700;1,700&family=Geist:wght@300;400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/"}}</script>
+<style>
+:root{--bar:clamp(58px,8vh,72px);--ink:#f3f1ea;--red:#ff3b2f;--sky:#8fd3ff}
+html,body{margin:0;height:100%;overflow:hidden;background:#07080b;color:var(--ink);font-family:Geist,system-ui,sans-serif}
+canvas{position:fixed;inset:0;display:block}
+.hide{display:none!important}
+#ov{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column}
+/* the poster is the live game: the car drives itself round the circuit behind this overlay */
+.poster{position:relative;flex:1;overflow:hidden}
+.fx{position:absolute;inset:0;pointer-events:none}
+.vig{background:radial-gradient(90% 85% at 64% 46%,transparent 40%,rgba(5,6,9,.78) 100%),linear-gradient(90deg,rgba(5,6,9,.97) 0,rgba(5,6,9,.9) 34%,transparent 62%)}
+.label{position:absolute;left:clamp(24px,5.5vw,88px);top:50%;translate:0 -50%;width:fit-content;opacity:0;animation:in 1.4s .3s ease-out forwards}
+.no{display:flex;align-items:center;gap:.9em;font:500 clamp(10px,.85vw,13px)/1 'Geist Mono',monospace;letter-spacing:.3em;text-transform:uppercase;color:var(--sky)}
+.no i{width:2.2em;height:.72em;background:repeating-conic-gradient(var(--ink) 0 25%,transparent 0 50%) 0 0/.72em .72em}
+h1{margin:clamp(10px,1.6vh,18px) 0 0 -.04em;font:800 clamp(46px,min(7.2vw,14vh),118px)/.9 Unbounded,system-ui,sans-serif;letter-spacing:-.035em;text-transform:uppercase;font-style:italic;white-space:nowrap}
+h1 b{display:block;font-weight:800;color:var(--red);text-shadow:0 0 60px rgba(255,59,47,.35)}
+.rule{width:100%;height:2px;margin:clamp(14px,2.2vh,22px) 0;background:linear-gradient(90deg,var(--ink) 0 22%,transparent 0) 0 0/100% 100%,linear-gradient(90deg,rgba(255,255,255,.25),transparent)}
+.sub{font:300 clamp(16px,min(1.4vw,2.7vh),21px)/1.42 Geist,system-ui,sans-serif;color:#cfd3dc;white-space:nowrap}
+.cta{margin-top:clamp(18px,3.2vh,30px);display:flex;flex-direction:column;align-items:flex-start;gap:clamp(10px,1.6vh,14px)}
+#go{cursor:pointer;font:700 italic clamp(17px,1.5vw,22px) 'Chakra Petch',Geist,sans-serif;letter-spacing:.16em;text-transform:uppercase;line-height:1;white-space:nowrap;padding:1em 2.1em 1em 2.2em;color:#fff;border:0;border-radius:999px;
+  background:linear-gradient(180deg,#ff5a4a,#e02417 55%,#b5160c);box-shadow:0 0 0 1px #5a0c06,0 0 0 6px rgba(255,59,47,.16),0 12px 40px rgba(0,0,0,.7),0 0 80px rgba(255,59,47,.28),inset 0 1px 0 rgba(255,255,255,.5);
+  transition:transform .3s cubic-bezier(.2,1.5,.4,1),filter .3s}
+#go:hover:not(:disabled),#go:focus-visible{transform:translateY(-2px);filter:brightness(1.12);outline:none}
+#go:active:not(:disabled){transform:translateY(1px)}
+#go:disabled{cursor:wait;filter:saturate(.2) brightness(.6)}
+#msg{font:400 clamp(10px,.8vw,12px)/1.6 'Geist Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:rgba(243,241,234,.6);white-space:nowrap}
+/* studio footer, same as the other NXT games */
+.credit{--k:rgba(255,255,255,.55);position:relative;flex:0 0 var(--bar);display:flex;align-items:center;gap:18px;padding:0 clamp(16px,3.2vw,48px);background:#000;color:#fff;text-decoration:none;font:400 13px/1 Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.credit::before{content:'';position:absolute;inset:0 0 auto;height:1px;background:rgba(255,255,255,.09)}
+.credit img{height:40px;width:40px;border-radius:10px;filter:grayscale(1) contrast(1.1);opacity:.9;transition:opacity .4s}
+.credit .who{display:flex;align-items:baseline;gap:12px;white-space:nowrap}
+.credit .name{font-weight:500;font-size:clamp(13px,1.05vw,15px);letter-spacing:-.01em;color:#f4f4f5}
+.credit .mono,.credit .url{font:400 clamp(9.5px,.72vw,11px)/1 'Geist Mono',ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--k)}
+.credit .line{flex:1;height:1px;min-width:24px;background:rgba(255,255,255,.14) linear-gradient(90deg,transparent,#fff,transparent) no-repeat -40% 0/30% 100%;transition:background-position 1s cubic-bezier(.3,.7,.2,1)}
+.credit .go{display:flex;align-items:baseline;gap:12px;white-space:nowrap}
+.credit .url{color:#f4f4f5;letter-spacing:.04em;text-transform:none;font-size:clamp(11px,.85vw,12.5px)}
+.credit .arr{display:inline-block;margin-left:4px;transition:translate .35s cubic-bezier(.3,.7,.2,1)}
+.credit:hover .line,.credit:focus-visible .line{background-position:140% 0}
+.credit:hover .arr,.credit:focus-visible .arr{translate:2px -2px}
+.credit:hover img,.credit:focus-visible img{opacity:1}
+@media (max-aspect-ratio:1/1){.label{left:24px;right:24px;top:auto;bottom:4vh;translate:none;width:auto}h1{font-size:min(13.5vw,84px)}.sub{white-space:normal;font-size:clamp(16px,4.4vw,22px);text-wrap:balance}.sub br{display:none}#msg{white-space:normal;text-wrap:balance}.vig{background:linear-gradient(0deg,rgba(5,6,9,.95) 30%,transparent 74%)}}
+@media (max-width:760px){.credit .mono,.credit .line{display:none}.credit .go{margin-left:auto}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+@keyframes in{to{opacity:1}}
+</style></head><body>
+<div id="ov">
+  <main class="poster">
+    <i class="fx vig"></i>
+    <div class="label">
+      <div class="no"><i></i>Mixed reality grand prix</div>
+      <h1>Sunday<b>Driver</b></h1>
+      <div class="rule"></div>
+      <div class="sub">A dashboard appears in your room. The wipers sweep, <br>and behind the windscreen there is another world.</div>
+      <div class="cta"><button id="go" disabled>Warming up</button><div id="msg"></div></div>
+    </div>
+  </main>
+  <a class="credit" id="nxt" href="https://www.nxtwebxr.com/?ref=sundaydriver" aria-label="A NXT/WebXR production. Explore more free WebXR experiences on nxtwebxr.com">
+    <img src="nxtwebxr.png" alt="" width="160" height="160">
+    <span class="who"><span class="name">A NXT/WebXR production</span><span class="mono">Sunday Driver · 2026</span></span>
+    <i class="line"></i>
+    <span class="go"><span class="mono">More free WebXR experiences</span><span class="url">nxtwebxr.com<span class="arr">↗</span></span></span>
+  </a>
+</div>
+<script type="module">
