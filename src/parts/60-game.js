@@ -125,8 +125,8 @@ function flow(dt) {
   else if (ph === 'race') { G.time += dt; P.lapT += dt; drive(dt); updRivals(dt, true); if (G.t > 2) G.lights = 0;
     const lap = clamp(Math.floor(P.prog / TL) + 1, 1, CFG.LAPS);
     if (lap !== G.lap) { G.lap = lap; if (!P.best || P.lapT < P.best) P.best = P.lapT; P.lapT = 0; sfx('lap'); const lc = 15 + (8 - G.pos) * 5; SAVE.coins += lc; G.earn.laps += lc; save(); sfx('coin', 1, 0); say(`${lap === CFG.LAPS ? 'FINAL LAP' : 'LAP ' + lap} · +${lc}¢`, 2.2); }
-    const lf = P.prog / TL; if (G.level === 2) { const k = s01((lf - .55) / .7); WX.sink = s01(lf / .9); WX.t = [0, 0, 1 - k, k]; if (lf > .55 && lf < .56 && T > G.msgT) say('NIGHT FALLS · LIGHTS ON', 2.4); } // level two: lap one the sun goes down, then it is night
-    else { WX.sink = 0; WX.t = lf > 1.04 && lf < 1.86 ? [0, 1, 0] : lf >= 1.86 ? [0, 0, 1] : [1, 0, 0]; if (hit(0.001) || (lf > 1.04 && lf < 1.045 && T > G.msgT)) lf > 1 && say('RAIN', 2); } // lap two: it rains. lap three: the sun comes back low and gold
+    const lf = P.prog / TL; if (G.level === 2) { const k = s01((lf - .55) / .7); WX.sink = s01(lf / .9); WX.t = [0, 0, 1 - k, k]; if (lf > .55 && lf < .56 && T > G.msgT) say('NIGHT FALLS · LIGHTS ON', 2.4); WX.storm = s01((lf - 1.55) / .45); WX.rainX = s01((lf - 1.97) / .15); if (lf > 2 && lf < 2.01 && T > G.msgT) say('STORM', 2); } // and the last lap is a thunderstorm in the dark // level two: lap one the sun goes down, then it is night
+    else { WX.sink = 0; WX.rainX = 0; WX.storm = lf < 1.04 ? s01((lf - .72) / .32) * .55 : lf < 1.86 ? 1 : 1 - s01((lf - 1.86) / .15); WX.t = lf > 1.04 && lf < 1.86 ? [0, 1, 0] : lf >= 1.86 ? [0, 0, 1] : [1, 0, 0]; if (hit(0.001) || (lf > 1.04 && lf < 1.045 && T > G.msgT)) lf > 1 && say('RAIN', 2); } // lap two: it rains. lap three: the sun comes back low and gold
     if (!IN.everHeld && G.t > 2.5 && T > G.msgT) say('GRAB THE WHEEL', 1.5);
     if (!G.tipHB && P.prog > 0 && md(P.i, atTPc[10]) < 6) { G.tipHB = true; say('HAIRPIN · PULL THE HANDBRAKE', 3); } HB.btn.material.emissiveIntensity = G.tipHB && T < G.msgT + 2 && !G.usedHB ? 1.5 + Math.sin(T * 9) : 0; if (IN.hb) G.usedHB = true;
     if (P.draft > .6 && T > G.msgT) say('SLIPSTREAM', .4);
@@ -142,7 +142,7 @@ function flow(dt) {
   const all = standings(); G.pos = all.indexOf(P) + 1;
 }
 const atTPc = TP.map((p, k) => atTP(k));
-function restart() { sfx('click'); G.level = G.level === 1 ? 2 : 1; WX.sink = 0; say(G.level === 2 ? 'LEVEL 2 · NIGHT DRIVE' : 'LEVEL 1 · SUNDAY', 3); G.fin.length = 0; G.place = 0; G.lap = 1; G.tipHB = G.usedHB = false; WX.t = [1, 0, 0]; grid(); openGlass(false); UG.uDust.value = 1; WS.a = WP.a0; setPhase('crank'); G.t = G.pt = 1.2; G.engine = 1; }
+function restart() { sfx('click'); WX.storm = WX.rainX = 0; G.level = G.level === 1 ? 2 : 1; WX.sink = 0; say(G.level === 2 ? 'LEVEL 2 · NIGHT DRIVE' : 'LEVEL 1 · SUNDAY', 3); G.fin.length = 0; G.place = 0; G.lap = 1; G.tipHB = G.usedHB = false; WX.t = [1, 0, 0]; grid(); openGlass(false); UG.uDust.value = 1; WS.a = WP.a0; setPhase('crank'); G.t = G.pt = 1.2; G.engine = 1; }
 function seat(hp, fwd) { rig.position.set(hp.x, hp.y - .015, hp.z); rig.rotation.y = Math.atan2(-fwd.x, -fwd.z); rig.updateMatrixWorld(true); } // the cockpit goes where you are: your eyes are its origin
 
 // ── put the world where it belongs. The car never moves in your room; everything else does
