@@ -14,7 +14,7 @@ function mirrors() { mirF++; const eye = renderer.xr.isPresenting ? renderer.xr.
     const d = _v.subVectors(_eyeM, _mc).dot(_mn); if (d < .005) continue; _eyeR.copy(_eyeM).addScaledVector(_mn, -2 * d); // your eye, reflected through the glass
     _mm.makeBasis(_v2.copy(_mx).negate(), _my, _v3.copy(_mn).negate()).setPosition(_eyeR); m.cam.matrixWorld.copy(_mm); m.cam.matrixWorldInverse.copy(_mm).invert();
     _v.subVectors(_mc, _eyeR); const px = -_v.dot(_mx), py = _v.dot(_my); m.cam.projectionMatrix.makePerspective(px - hw, px + hw, py + hh, py - hh, d, 1600); m.cam.projectionMatrixInverse.copy(m.cam.projectionMatrix).invert();
-    if (!any) { any = true; renderer.xr.enabled = false; st.setClear(1); } renderer.setRenderTarget(m.rt); renderer.clear(); renderer.render(world, m.cam); } // the world only draws where the stencil is 1, so the mirror clears it to 1
+    if (!any) { any = true; renderer.xr.enabled = false; st.setClear(1); } renderer.setRenderTarget(m.rt); renderer.clear(); renderer.render(tilt, m.cam); } // the world only draws where the stencil is 1, so the mirror clears it to 1
   if (any) { st.setClear(0); renderer.xr.enabled = xe; renderer.setRenderTarget(rt0); } }
 
 // ── hands: pinch, and how fast the pinch is moving (for throws), in cockpit space

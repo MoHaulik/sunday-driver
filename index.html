@@ -634,6 +634,13 @@ function noise(o, d, g, type = 'highpass', f = 1000, t = 0, f2, q = 1) { const c
   s.connect(fl).connect(gn).connect(o); s.start(t0, Math.random() * 1.5); s.stop(t0 + d + .02); }
 function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.tmp || A.sfx;
   switch (type) {
+    case 'impact': for (let i = 0; i < 8 * x; i++) { noise(o, .045, .32, 'bandpass', 1100, i * .055, 700, 2); tone(o, 'square', 95, 70, .045, .13, i * .055); } break; // the impact wrench: brrrrt
+    case 'drill': tone(o, 'sawtooth', 220, 560, .75 * x, .07); tone(o, 'square', 110, 280, .75 * x, .035); noise(o, .75 * x, .05, 'bandpass', 2600); break;
+    case 'spray': noise(o, 1.3 * x, .2, 'highpass', 3800, 0, 5200); noise(o, .08, .12, 'lowpass', 600); break; // psssshhh
+    case 'rattle': for (let i = 0; i < 7; i++) { tone(o, 'square', 2300 + Math.random() * 500, 2000, .025, .05, i * .085); noise(o, .03, .12, 'highpass', 4200, i * .085); } break; // the ball in the spray can
+    case 'clank': tone(o, 'sine', 820, 790, .45, .16); tone(o, 'sine', 1360, 1320, .32, .1); tone(o, 'triangle', 2150, 2100, .22, .06); noise(o, .05, .22, 'highpass', 2200); break;
+    case 'clunk': tone(o, 'sine', 95, 45, .3, .45); tone(o, 'square', 60, 38, .07, .22); noise(o, .14, .3, 'lowpass', 450); break; // a big light switch
+    case 'hiss': noise(o, .55, .16, 'bandpass', 1900, 0, 500, 1.4); break;
     case 'click': tone(o, 'square', 1900, 700, .035, .12); noise(o, .02, .12, 'highpass', 3000); break;
     case 'grab': tone(o, 'sine', 160, 90, .07, .2); noise(o, .04, .05, 'lowpass', 700); break;
     case 'arrive': tone(o, 'sine', 110, 520, 1.6, .1, 0, .5); tone(o, 'triangle', 220, 1040, 1.6, .04, 0, .6); noise(o, 1.6, .03, 'bandpass', 600, 0, 5200, 3); break;
@@ -1021,17 +1028,17 @@ function shopOpen() { SHOP.open = 1; SHOP.t = T; SHOP.slots = []; SHOP.pv = null
     g.updateWorldMatrix(true, true); box3.setFromObject(g); const c = rig.worldToLocal(box3.getCenter(new V())), tag = mesh(new THREE.PlaneGeometry(.11, .041), lit({ map: tagTex(it.n, it.p + '¢'), transparent: true }), cab); tag.position.copy(c).add(_v.set(0, .06, .035)); look(tag);
     SHOP.slots.push({ id, g, c, tag, cool: 0 }); }
   SHOP.fan = grp(cab, .72, -.1, -.42); look(SHOP.fan, .6); SHOP.cards = THEMES.map((th, k) => { const pv = grp(SHOP.fan), a = (k - 2.5) * .3; pv.rotation.z = -a; const card = mesh(new THREE.PlaneGeometry(.045, .07).translate(0, .085, 0), lit({ map: null, transparent: true }), pv); card.position.z = k * .0008; return { th, pv, card }; }); paintCards();
-  sfx('arrive'); say('TAP A HOLOGRAM TO BUY · TAP A SWATCH TO PAINT', 3); }
+  sfx('arrive'); say('TAP A HOLOGRAM TO BUY · TAP A SWATCH TO PAINT', 3); if (G.phase === 'finish') garageIn(); }
 function paintCards() { SHOP.cards.forEach(({ th, card }) => { const own = ownTheme(th.id), cur = (SHOP.pv || SAVE.theme || 'lav') === th.id;
   card.material.map = artTex(128, 200, c => { c.fillStyle = '#fffaf2'; c.beginPath(); c.roundRect(3, 3, 122, 194, 12); c.fill(); c.strokeStyle = cur ? '#ff2d8a' : ink; c.lineWidth = cur ? 9 : 5; c.stroke(); th.c.slice(0, 4).forEach((h, i) => { c.fillStyle = h; c.fillRect(14, 14 + i * 26, 100, 26); }); c.strokeStyle = ink; c.lineWidth = 3; c.strokeRect(14, 14, 100, 104);
     c.fillStyle = ink; c.textAlign = 'center'; c.font = '700 19px "Chakra Petch",sans-serif'; c.fillText(th.n, 64, 146, 116); c.fillStyle = own ? '#2fbf8f' : '#ff2d8a'; c.font = 'italic 800 22px Unbounded,sans-serif'; c.fillText(own ? (cur ? '✓ ON' : 'OWNED') : SHOP.pv === th.id ? 'TAP = BUY' : th.p + '¢', 64, 180, 116); }); card.material.needsUpdate = true; }); }
-function shopClose() { if (!SHOP.open) return; SHOP.slots.forEach(s => { s.g.parent && s.g.parent.remove(s.g); cab.remove(s.tag); }); if (SHOP.fan) cab.remove(SHOP.fan); SHOP.slots = []; SHOP.cards = []; SHOP.open = 0; SHOP.pv = null; setTheme(SAVE.theme); }
-function buy(k) { const s = SHOP.slots[k]; if (!s || T < s.cool) return; s.cool = T + .8; const it = ITEMS[s.id];
+function shopClose() { garageOut(); if (!SHOP.open) return; SHOP.slots.forEach(s => { s.g.parent && s.g.parent.remove(s.g); cab.remove(s.tag); }); if (SHOP.fan) cab.remove(SHOP.fan); SHOP.slots = []; SHOP.cards = []; SHOP.open = 0; SHOP.pv = null; setTheme(SAVE.theme); }
+function buy(k) { const s = SHOP.slots[k]; if (!s || T < s.cool || GA.busy) return; s.cool = T + .8; const it = ITEMS[s.id];
   if (SAVE.coins < it.p) { sfx('nope'); say(`NEED ${it.p - SAVE.coins}¢ MORE`, 1.6); return; }
-  SAVE.coins -= it.p; SAVE.own.push(s.id); save(); s.g.parent && s.g.parent.remove(s.g); cab.remove(s.tag); SHOP.slots.splice(k, 1); sfx('buy'); burst(s.c.clone(), 40, 1.6); install(s.id); if (s.id === 'gold') setTheme(SAVE.theme); say(it.n, 2); }
+  SAVE.coins -= it.p; SAVE.own.push(s.id); save(); s.g.parent && s.g.parent.remove(s.g); cab.remove(s.tag); SHOP.slots.splice(k, 1); sfx('buy'); say('FITTING · ' + it.n, 1.6); work(s.c.clone(), 'fit', () => { install(s.id); if (s.id === 'gold') setTheme(SAVE.theme); burst(s.c.clone(), 40, 1.6); say(it.n, 2); }); } // the crew fits it: you hear it, you see the sparks, then it is there
 function swatch(th) { if (ownTheme(th.id)) { SAVE.theme = th.id; SHOP.pv = null; save(); setTheme(th.id); sfx('click'); }
-  else if (SHOP.pv === th.id) { if (SAVE.coins < th.p) { sfx('nope'); say(`NEED ${th.p - SAVE.coins}¢ MORE`, 1.6); return; } SAVE.coins -= th.p; SAVE.own.push('theme:' + th.id); SAVE.theme = th.id; SHOP.pv = null; save(); sfx('buy'); burst(SHOP.fan.position.clone(), 30, 1.4); say(th.n + ' INTERIOR', 2); }
-  else { SHOP.pv = th.id; setTheme(th.id); sfx('whoosh', .4); } paintCards(); }
+  else if (SHOP.pv === th.id) { if (SAVE.coins < th.p) { sfx('nope'); say(`NEED ${th.p - SAVE.coins}¢ MORE`, 1.6); return; } if (GA.busy) return; SAVE.coins -= th.p; SAVE.own.push('theme:' + th.id); SAVE.theme = th.id; SHOP.pv = null; save(); sfx('buy'); work(SHOP.fan.position.clone(), 'paint', () => { burst(SHOP.fan.position.clone(), 30, 1.4); say(th.n + ' INTERIOR', 2); }); }
+  else { SHOP.pv = th.id; setTheme(th.id); sfx('spray', .35); mist(th.c[0], 40); } paintCards(); }
 function updShop(dt) { const want = (G.phase === 'finish' && G.t > 6.3) || (G.pause === 1 && G.pauseT > .7); if (want && !SHOP.open) shopOpen(); else if (!want && SHOP.open) shopClose(); if (!SHOP.open) return;
   const pop = s01((T - SHOP.t) / .5); SHOP.slots.forEach((s, k) => { s.tag.scale.setScalar(.001 + pop); for (const h of PH) if (h.ok && !h.on) for (const t of h.tips) if (t.distanceTo(s.c) < .05) buy(k); if (SIM && KEY[String(k + 1)]) { KEY[String(k + 1)] = false; buy(k); } });
   SHOP.fan.scale.setScalar(.001 + pop * 1.7); SHOP.cards.forEach((cd, k) => { cd.card.getWorldPosition(_v4); rig.worldToLocal(_v4).add(_v3.set(0, .085, 0).applyQuaternion(cd.pv.getWorldQuaternion(_q))); for (const h of PH) if (h.ok && !h.on && T > (cd.cool || 0)) for (const t of h.tips) if (t.distanceTo(_v4) < .03) { cd.cool = T + .6; swatch(cd.th); break; } }); }
@@ -1321,7 +1328,7 @@ function mirrors() { mirF++; const eye = renderer.xr.isPresenting ? renderer.xr.
     const d = _v.subVectors(_eyeM, _mc).dot(_mn); if (d < .005) continue; _eyeR.copy(_eyeM).addScaledVector(_mn, -2 * d); // your eye, reflected through the glass
     _mm.makeBasis(_v2.copy(_mx).negate(), _my, _v3.copy(_mn).negate()).setPosition(_eyeR); m.cam.matrixWorld.copy(_mm); m.cam.matrixWorldInverse.copy(_mm).invert();
     _v.subVectors(_mc, _eyeR); const px = -_v.dot(_mx), py = _v.dot(_my); m.cam.projectionMatrix.makePerspective(px - hw, px + hw, py + hh, py - hh, d, 1600); m.cam.projectionMatrixInverse.copy(m.cam.projectionMatrix).invert();
-    if (!any) { any = true; renderer.xr.enabled = false; st.setClear(1); } renderer.setRenderTarget(m.rt); renderer.clear(); renderer.render(world, m.cam); } // the world only draws where the stencil is 1, so the mirror clears it to 1
+    if (!any) { any = true; renderer.xr.enabled = false; st.setClear(1); } renderer.setRenderTarget(m.rt); renderer.clear(); renderer.render(tilt, m.cam); } // the world only draws where the stencil is 1, so the mirror clears it to 1
   if (any) { st.setClear(0); renderer.xr.enabled = xe; renderer.setRenderTarget(rt0); } }
 
 // ── hands: pinch, and how fast the pinch is moving (for throws), in cockpit space
@@ -1523,6 +1530,68 @@ function ghost(dt) { const racing = G.phase === 'race';
   GH.g.position.set(s[0], s[1], s[2]); GH.g.rotation.set(0, -s[3], 0); GH.rb.push(GH.g.position, .4); GH.rb.build(YA, .7);
   const lp = ((P.prog % TL) + TL) % TL, qn = Math.floor(lp / TL * 4); if (qn > GH.q && qn < 4) { GH.q = qn; const g = GH.last.find(r => r[5] >= lp); if (g) { const d = P.lapT - g[0]; say(`GHOST ${d < 0 ? '−' : '+'}${Math.abs(d).toFixed(1)}s`, 1.4); sfx(d < 0 ? 'coin' : 'tick', .5); } } } // splits: green coin if you are ahead
 
+// ═══════════════════════════ THE GARAGE: between races the car rolls into a workshop. Windows go dark, the lights clunk on, and the crew fits what you buy — you hear it, you see the sparks. Only through your windows; your room stays your room ═══════════════════════════
+const GG = new THREE.Group(), GY = -CFG.EYE, GA = { want: false, on: false, bo: 0, t: 0, busy: false, q: [], amb: 0 }; GG.visible = false; tilt.add(GG);
+const GLAMP = [new V(CX - 1.2, 2.25, -1.4), new V(CX + 1.2, 2.25, 1.4)], GU = { uL: u(GLAMP), uI: u([0, 0]) };
+{ const b = new MB(), C2 = h => col(h), E = [], X0 = -3.4, X1 = 4.1, Z0 = -6, Z1 = 4.6, H = 3.8; // walls, floor, ceiling, and the furniture, all one mesh; every box also leaves its edges for the ink
+  const bx = (x, y, z, w, h, d, c, ry = 0) => { const m = M4(x, y, z, ry); b.box(m, w, h, d, C2(c)); const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0).applyMatrix4(m)); E.push(...g.attributes.position.array); };
+  const cy = (x, y, z, r, h, c, seg = 16) => { b.add(new THREE.CylinderGeometry(r, r, h, seg), M4(x, y + h / 2, z), C2(c)); for (const yy of [y, y + h]) for (let i = 0; i < seg; i++) { const a0 = i / seg * 6.283, a1 = (i + 1) / seg * 6.283; E.push(x + Math.cos(a0) * r, yy, z + Math.sin(a0) * r, x + Math.cos(a1) * r, yy, z + Math.sin(a1) * r); } };
+  bx(CX, GY - .2, (Z0 + Z1) / 2, X1 - X0, .2, Z1 - Z0, '#ffffff'); bx(CX, GY + H, (Z0 + Z1) / 2, X1 - X0, .25, Z1 - Z0, '#2d2350'); // floor, ceiling
+  for (const [x, w] of [[X0 - .1, .2], [X1 + .1, .2]]) { bx(x, GY, (Z0 + Z1) / 2, w, 1.2, Z1 - Z0, '#7fd0ff'); bx(x, GY + 1.2, (Z0 + Z1) / 2, w, H - 1.2, Z1 - Z0, '#c9a6ff'); } // side walls: a blue dado, lilac above
+  bx(CX, GY, Z1 + .1, X1 - X0, H, .2, '#c9a6ff'); bx(X0 + .9, GY, Z0 - .1, 1.8, H, .2, '#c9a6ff'); bx(X1 - .9, GY, Z0 - .1, 1.8, H, .2, '#c9a6ff'); bx(CX, GY + 3, Z0 - .1, X1 - X0 - 3.6, H - 3, .2, '#c9a6ff');
+  for (let y = 0; y < 3; y += .22) bx(CX, GY + y, Z0 - .05, X1 - X0 - 3.6, .2, .1, y % .44 < .22 ? '#ff8fc7' : '#ff6fb5'); // the roller door, ribbed
+  for (const s of [-1, 1]) { bx(CX + s * 1.55, GY, -.2, .28, 2.6, .28, '#ffd23f'); bx(CX + s * 1.25, GY + .35, -.2, .6, .12, .2, '#ffd23f'); bx(CX + s * 1.55, GY, -.2, .7, .08, .7, '#3a2a5c'); } // a two-post lift either side of the car
+  bx(X1 - .55, GY, -2.6, .8, .9, .5, '#ff3b4f'); for (let i = 0; i < 4; i++) bx(X1 - .55, GY + .12 + i * .19, -2.34, .7, .02, .02, '#1d1233'); bx(X1 - .55, GY + .9, -2.6, .85, .5, .45, '#ff3b4f'); // the red toolbox
+  bx(X1 - .4, GY, .6, .7, .85, 2.2, '#9c6b47'); bx(X1 - .4, GY + .85, .6, .8, .06, 2.3, '#c48a5c'); // the workbench
+  for (const [x, z, n] of [[X0 + .5, -4.6, 4], [X0 + .5, -3.7, 3], [X1 - .5, 3.6, 4]]) for (let i = 0; i < n; i++) { cy(x, GY + i * .26, z, .36, .25, '#2a2238'); cy(x, GY + i * .26 + .02, z, .2, .21, '#ff8fc7', 12); } // tyre stacks, pink rims
+  for (const [x, z, c] of [[X0 + .45, 2.8, '#4fd1b0'], [X0 + .45, 3.6, '#ff6fb5']]) cy(x, GY, z, .3, .9, c); // oil drums
+  for (const L of GLAMP) { b.add(new THREE.ConeGeometry(.42, .32, 18, 1, true), M4(L.x, L.y + .1, L.z), C2('#3fc98a')); E.push(L.x, L.y + .26, L.z, L.x, GY + H, L.z); } // lamp shades on their wires
+  const geo = b.geo(), m = new THREE.Mesh(geo, new THREE.ShaderMaterial({ uniforms: GU, vertexColors: true, side: THREE.DoubleSide, ...STEN,
+    vertexShader: `varying vec3 vC,vN,vP;void main(){vC=color;vN=normal;vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader: `uniform vec3 uL[2];uniform float uI[2];varying vec3 vC,vN,vP;void main(){vec3 n=normalize(vN),c=vC;if(!gl_FrontFacing)n=-n;
+      if(n.y>.5&&vP.y<${(GY + .01).toFixed(3)}){vec2 q=floor(vP.xz/.6);c=mix(vec3(1.,.62,.82),vec3(1.),mod(q.x+q.y,2.));c*=1.-.25*smoothstep(.5,.0,length(vP.xz-vec2(${(CX + .4).toFixed(2)},-1.)))*.6;} // checkered tiles, an oil stain under the engine
+      float l=.22+.12*max(dot(n,normalize(vec3(.3,1.,.4))),0.);for(int i=0;i<2;i++){vec3 L=uL[i]-vP;float d=dot(L,L);l+=uI[i]*(max(dot(n,normalize(L)),0.)*.8+.2)*7./(3.+d);}
+      l=floor(l*5.)/5.+.06;gl_FragColor=vec4(c*l*(.8+.2*smoothstep(${GY.toFixed(2)},${(GY + 1.5).toFixed(2)},vP.y)),1.);}` })); m.renderOrder = RO.world; GG.add(m); // toon bands, lamp pools
+  const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.Float32BufferAttribute(E, 3)); const el = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: '#1d1233', ...STEN })); el.renderOrder = RO.world; GG.add(el);
+  const plane = (w, h, tex, x, y, z, ry = 0, glow) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, ...STEN })); p.position.set(x, y, z); p.rotation.y = ry; p.renderOrder = RO.world + 1; GG.add(p); return p; };
+  GA.sign = plane(2.6, .62, artTex(1024, 244, c => { c.lineJoin = 'round'; c.font = 'italic 800 132px Unbounded,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.shadowColor = '#ff2d8a'; c.shadowBlur = 40; c.lineWidth = 14; c.strokeStyle = '#ff2d8a'; c.strokeText('NXT GARAGE', 512, 128, 980); c.fillStyle = '#fff0f8'; c.fillText('NXT GARAGE', 512, 128, 980); }), CX, GY + 3.35, Z0 + .02);
+  plane(2.8, 1.5, artTex(1024, 540, c => { c.fillStyle = '#e9c48f'; c.fillRect(0, 0, 1024, 540); c.fillStyle = 'rgba(80,50,20,.5)'; for (let y = 20; y < 540; y += 40) for (let x = 20; x < 1024; x += 40) { c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill(); } // the pegboard: every tool has its outline drawn behind it
+    const tool = (x, y, a, f) => { c.save(); c.translate(x, y); c.rotate(a); c.lineWidth = 10; c.strokeStyle = '#1d1233'; c.lineJoin = 'round'; f(); c.restore(); }; c.fillStyle = '#ff4fa3';
+    tool(150, 270, .3, () => { c.beginPath(); c.roundRect(-18, -150, 36, 230, 12); c.fill(); c.stroke(); c.beginPath(); c.arc(0, -170, 50, .9, 5.4); c.lineTo(0, -170); c.fill(); c.stroke(); }); c.fillStyle = '#7fd0ff';
+    tool(420, 280, -.2, () => { c.beginPath(); c.roundRect(-14, -40, 28, 210, 10); c.fill(); c.stroke(); c.beginPath(); c.roundRect(-80, -110, 160, 70, 14); c.fill(); c.stroke(); }); c.fillStyle = '#ffd23f';
+    tool(680, 270, .1, () => { c.beginPath(); c.roundRect(-30, 20, 60, 160, 20); c.fill(); c.stroke(); c.fillStyle = '#c8ccdc'; c.beginPath(); c.roundRect(-8, -170, 16, 190, 4); c.fill(); c.stroke(); }); c.fillStyle = '#86e05a';
+    tool(890, 260, -.4, () => { c.beginPath(); c.moveTo(-40, -170); c.lineTo(40, -170); c.lineTo(20, 140); c.lineTo(-20, 140); c.closePath(); c.fill(); c.stroke(); }); }), X0 + .02, GY + 2.05, -1.6, Math.PI / 2);
+  [['SUNDAY DRIVER', '#ff2d8a', '#fff'], ['OIL CHANGE ♥ 9.99¢', '#7fd0ff', '#1d1233'], ['NO CRYING IN THE PIT', '#ffd23f', '#1d1233']].forEach(([t, bg, fg], k) => plane(.8, 1.1, artTex(256, 352, c => { c.fillStyle = bg; c.fillRect(0, 0, 256, 352); c.strokeStyle = '#1d1233'; c.lineWidth = 12; c.strokeRect(6, 6, 244, 340); c.fillStyle = fg; c.font = 'italic 800 40px Unbounded,sans-serif'; c.textAlign = 'center'; t.split(' ').forEach((w, i, a) => c.fillText(w, 128, 176 + (i - (a.length - 1) / 2) * 50, 230)); }), [X0 + .02, X1 - .02, X0 + .02][k], GY + 2.1, [1.6, -1.2, 3.2][k], k === 1 ? -Math.PI / 2 : Math.PI / 2));
+  GA.bulbs = GLAMP.map(L => { const s = new THREE.Mesh(sph(.14, 14, 10), new THREE.MeshBasicMaterial({ color: '#2a2238', toneMapped: false, ...STEN })); s.position.copy(L); s.renderOrder = RO.world; GG.add(s); return s; }); }
+// the robot mechanic: a pink arm on the floor in front of your windscreen. It sways while it waits, and gets to work when you buy
+const ARM = { g: grp(GG, CX + 1.05, GY, -3.1) }; { const pk = new THREE.MeshToonMaterial({ color: '#ff6fb5', gradientMap: TOON, ...STEN }), dk = new THREE.MeshToonMaterial({ color: '#3a2a5c', gradientMap: TOON, ...STEN }), ol = new THREE.MeshBasicMaterial({ color: '#1d1233', side: THREE.BackSide, ...STEN });
+  const part = (geo, mat, p) => { const m = new THREE.Mesh(geo, mat); m.renderOrder = RO.world; p.add(m); const o = new THREE.Mesh(geo, ol); o.scale.setScalar(1.06); o.renderOrder = RO.world; m.add(o); return m; };
+  part(cyl(.32, .4, .3, 20).translate(0, .15, 0), dk, ARM.g); ARM.s = grp(ARM.g, 0, .32, 0); part(sph(.16, 14, 10), pk, ARM.s); part(box(.16, 1.15, .16).translate(0, .58, 0), pk, ARM.s); ARM.e = grp(ARM.s, 0, 1.15, 0); part(sph(.12, 12, 8), dk, ARM.e); part(box(.12, .95, .12).translate(0, .48, 0), pk, ARM.e);
+  ARM.h = grp(ARM.e, 0, .95, 0); part(cyl(.08, .1, .2, 12).translate(0, .1, 0), dk, ARM.h); ARM.tool = part(cyl(.025, .025, .22, 8).translate(0, .3, 0), new THREE.MeshToonMaterial({ color: '#c8ccdc', gradientMap: TOON, ...STEN }), ARM.h); }
+// sparks: one set in your cabin (no stencil: they fly in your room), one in the garage (behind the glass)
+function sparkSys(parent, sten, n = 160) { const pos = new Float32Array(n * 3), cl = new Float32Array(n * 3), vel = [...Array(n)].map(() => new V()), life = new Float32Array(n), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(cl, 3)); let k = 0;
+  const m = new THREE.Points(g, new THREE.PointsMaterial({ size: sten ? .06 : .006, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, ...(sten ? STEN : {}) })); m.frustumCulled = false; m.renderOrder = RO.fx; parent.add(m);
+  return { emit(p, v, c, l = .5) { const i = k++ % n; pos.set([p.x, p.y, p.z], i * 3); vel[i].copy(v); cl.set([c.r, c.g, c.b], i * 3); life[i] = l; },
+    update(dt, grav) { for (let i = 0; i < n; i++) { if (life[i] <= 0) continue; life[i] -= dt; vel[i].y -= grav * dt; pos[i * 3] += vel[i].x * dt; pos[i * 3 + 1] += vel[i].y * dt; pos[i * 3 + 2] += vel[i].z * dt; if (life[i] <= 0) pos[i * 3 + 1] = -99; else { const f = Math.min(1, life[i] * 3); cl[i * 3] *= .985; cl[i * 3 + 1] *= .97; cl[i * 3 + 2] *= .96; } } g.attributes.position.needsUpdate = g.attributes.color.needsUpdate = true; } }; }
+const CSP = sparkSys(cab, false), GSP = sparkSys(GG, true), SPC = col('#ffcf6b');
+function mist(hex, n) { const c = col(hex); for (let i = 0; i < n; i++) CSP.emit(_v.set(rand(-.3, 1), rand(-.22, -.05), rand(-.6, -.92)), _v2.set(rand(-.05, .05), rand(.02, .1), rand(-.05, .05)), c, rand(.8, 1.6)); } // a puff of paint over the dash
+function work(p, kind, done) { GA.busy = true; GA.wp = p; GA.kind = kind; const t0 = T, S = kind === 'paint' ? [[0, 'rattle'], [.6, 'spray', 1.3], [1.3, 'hiss'], [2.1, 'clank']] : [[0, 'impact'], [.6, 'ratchet'], [.95, 'clank'], [1.25, 'drill', .6], [1.9, 'impact', .5]];
+  GA.q = S.map(([t, sf, x]) => ({ t: t0 + t, f: () => { sfxAt(sf, rig.localToWorld(p.clone()), x || 1); if (kind === 'paint' && sf === 'spray') mist(THEMES.find(q => q.id === SAVE.theme).c[0], 90); } })); GA.q.push({ t: t0 + (kind === 'paint' ? 2.4 : 2.3), f: () => { GA.busy = false; done(); } }); }
+function garageIn() { GA.want = true; } function garageOut() { GA.want = false; }
+function garage(dt) { const want = GA.want && G.phase === 'finish'; // windows fade to black, the swap happens in the dark, then the lights come on one by one
+  if (want !== GA.on) { GA.bo = Math.min(1, GA.bo + dt * 2.2); if (GA.bo >= 1) { GA.on = want; GG.visible = want; world.visible = !want; GA.t = 0; GU.uI.value[0] = GU.uI.value[1] = 0; if (want) sfx('hiss', .6); } }
+  else GA.bo = Math.max(0, GA.bo - dt * (GA.on ? .9 : 2)); BLK.material.opacity = GA.bo; BLK.visible = GA.bo > .005;
+  hud.visible = !GA.on; if (!GA.on) return; GA.t += dt; const t = GA.t; P.vx = P.vz = P.vf = 0; // parked
+  GLAMP.forEach((L, i) => { const on = t > .35 + i * .45; if (on && GU.uI.value[i] === 0) { GU.uI.value[i] = 1; sfxAt('clunk', rig.localToWorld(L.clone())); } const fl = on && t < .7 + i * .45 ? (Math.sin(t * 90) > 0 ? 1 : .2) : on ? 1 : 0; GU.uI.value[i] = on ? fl : 0; GA.bulbs[i].material.color.set(on ? '#fff3cf' : '#2a2238').multiplyScalar(on ? fl : 1); });
+  GA.sign.material.opacity = t > 1.4 ? (t < 1.8 && Math.sin(t * 60) < 0 ? .3 : 1) : 0; // and the neon sign buzzes on last
+  while (GA.q.length && T >= GA.q[0].t) GA.q.shift().f(); // the job list
+  const busy = GA.busy, k = busy ? 1 : 0; ARM.s.rotation.set(-.5 - Math.sin(T * (busy ? 7 : .7)) * (busy ? .12 : .06), Math.sin(T * .5) * .3 + (busy ? -.5 : 0), 0); ARM.e.rotation.x = .9 + Math.sin(T * (busy ? 9 : .9) + 1) * (busy ? .2 : .08); ARM.h.rotation.x = .6; ARM.tool.rotation.y = busy ? T * 40 : 0;
+  if (busy) { if (Math.random() < dt * 40) { ARM.tool.getWorldPosition(_v); GG.worldToLocal(_v); GSP.emit(_v, _v2.set(rand(-1.5, 1.5), rand(.5, 3), rand(-1.5, 1.5)), SPC, rand(.3, .7)); } // sparks at the robot, and at your part
+    if (GA.kind !== 'paint' && Math.random() < dt * 30) CSP.emit(GA.wp, _v2.set(rand(-.4, .4), rand(.1, .6), rand(-.4, .4)), SPC, rand(.2, .45)); }
+  if (T > GA.amb) { GA.amb = T + rand(5, 11); sfxAt(pick(['clank', 'ratchet', 'hiss']), rig.localToWorld(_v.set(rand(-3, 4), 0, rand(-5, 4))), .25); } } // the shop is never quiet
+const BLK = new THREE.Mesh(new THREE.SphereGeometry(40, 16, 10), new THREE.MeshBasicMaterial({ color: '#05030c', side: THREE.BackSide, transparent: true, opacity: 0, depthTest: false, depthWrite: false, ...STEN })); BLK.renderOrder = RO.fx + 3; BLK.visible = false; rig.add(BLK);
+function sparks(dt) { CSP.update(dt, 4); GSP.update(dt, 6); garage(dt); }
+
 // ═══════════════════════════ LOOP ═══════════════════════════
 const mouse = new THREE.Vector2();
 const framePoster = () => { const w = innerWidth, h = innerHeight; if (w / h > 1.1) camera.setViewOffset(w, h, -w * .13, 0, w, h); else camera.setViewOffset(w, h, 0, h * .16, w, h); }; // the landing page: the car sits clear of the words
@@ -1534,7 +1603,7 @@ function loop() {
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
   const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
-  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); storm(sdt); ghost(sdt); perf(dt); mirrors();
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); storm(sdt); ghost(sdt); sparks(dt); perf(dt); mirrors();
   renderer.render(scene, camera);
 }
 
@@ -1555,7 +1624,7 @@ if (SIM) { addEventListener('mousemove', e => mouse.set(e.clientX / innerWidth *
 function go(to) { // test hook: jump straight to a moment
   if (G.phase === 'poster') begin(false); G.clipZ = 99; G.engine = 1; openGlass(true); RADIO.on = true; if (to === 'ready') { openGlass(false); return setPhase('ready'); } if (to === 'crank') { openGlass(false); return setPhase('crank'); }
   if (to === 'count') return setPhase('count'); setPhase('race'); IN.auto = false; G.t = 3; if (to === 'rain') { P.prog += TL * 1.2; RIV.forEach(r => r.prog += TL * 1.2); } if (to === 'dusk') { P.prog += TL * 2.1; RIV.forEach(r => r.prog += TL * 2.1); } if (to === 'night') { G.level = 2; WX.t = [0, 0, 0, 1]; WX.w = [0, 0, 0, 1]; } }
-window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, heartShow, trackAt, carHit, wallHit, MIRR, strike, STRK, GH, PERF, quality, swatch, THEMES, SHOP_ITEMS: ITEMS, DUCK, VIS, BOB, STK, MADJ, duckOut, HV, rig, camera, scene, renderer, THREE, A, TL };
+window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, heartShow, trackAt, carHit, wallHit, MIRR, strike, STRK, GH, PERF, quality, GA, garageIn, garageOut, work, swatch, THEMES, SHOP_ITEMS: ITEMS, DUCK, VIS, BOB, STK, MADJ, duckOut, HV, rig, camera, scene, renderer, THREE, A, TL };
 
 // ═══════════════════════════ BOOT ═══════════════════════════
 (async () => {

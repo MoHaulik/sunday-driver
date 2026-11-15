@@ -10,7 +10,7 @@ function loop() {
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
   const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
-  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); storm(sdt); ghost(sdt); perf(dt); mirrors();
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); storm(sdt); ghost(sdt); sparks(dt); perf(dt); mirrors();
   renderer.render(scene, camera);
 }
 
@@ -31,7 +31,7 @@ if (SIM) { addEventListener('mousemove', e => mouse.set(e.clientX / innerWidth *
 function go(to) { // test hook: jump straight to a moment
   if (G.phase === 'poster') begin(false); G.clipZ = 99; G.engine = 1; openGlass(true); RADIO.on = true; if (to === 'ready') { openGlass(false); return setPhase('ready'); } if (to === 'crank') { openGlass(false); return setPhase('crank'); }
   if (to === 'count') return setPhase('count'); setPhase('race'); IN.auto = false; G.t = 3; if (to === 'rain') { P.prog += TL * 1.2; RIV.forEach(r => r.prog += TL * 1.2); } if (to === 'dusk') { P.prog += TL * 2.1; RIV.forEach(r => r.prog += TL * 2.1); } if (to === 'night') { G.level = 2; WX.t = [0, 0, 0, 1]; WX.w = [0, 0, 0, 1]; } }
-window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, heartShow, trackAt, carHit, wallHit, MIRR, strike, STRK, GH, PERF, quality, swatch, THEMES, SHOP_ITEMS: ITEMS, DUCK, VIS, BOB, STK, MADJ, duckOut, HV, rig, camera, scene, renderer, THREE, A, TL };
+window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, heartShow, trackAt, carHit, wallHit, MIRR, strike, STRK, GH, PERF, quality, GA, garageIn, garageOut, work, swatch, THEMES, SHOP_ITEMS: ITEMS, DUCK, VIS, BOB, STK, MADJ, duckOut, HV, rig, camera, scene, renderer, THREE, A, TL };
 
 // ═══════════════════════════ BOOT ═══════════════════════════
 (async () => {

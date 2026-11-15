@@ -30,6 +30,13 @@ function noise(o, d, g, type = 'highpass', f = 1000, t = 0, f2, q = 1) { const c
   s.connect(fl).connect(gn).connect(o); s.start(t0, Math.random() * 1.5); s.stop(t0 + d + .02); }
 function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.tmp || A.sfx;
   switch (type) {
+    case 'impact': for (let i = 0; i < 8 * x; i++) { noise(o, .045, .32, 'bandpass', 1100, i * .055, 700, 2); tone(o, 'square', 95, 70, .045, .13, i * .055); } break; // the impact wrench: brrrrt
+    case 'drill': tone(o, 'sawtooth', 220, 560, .75 * x, .07); tone(o, 'square', 110, 280, .75 * x, .035); noise(o, .75 * x, .05, 'bandpass', 2600); break;
+    case 'spray': noise(o, 1.3 * x, .2, 'highpass', 3800, 0, 5200); noise(o, .08, .12, 'lowpass', 600); break; // psssshhh
+    case 'rattle': for (let i = 0; i < 7; i++) { tone(o, 'square', 2300 + Math.random() * 500, 2000, .025, .05, i * .085); noise(o, .03, .12, 'highpass', 4200, i * .085); } break; // the ball in the spray can
+    case 'clank': tone(o, 'sine', 820, 790, .45, .16); tone(o, 'sine', 1360, 1320, .32, .1); tone(o, 'triangle', 2150, 2100, .22, .06); noise(o, .05, .22, 'highpass', 2200); break;
+    case 'clunk': tone(o, 'sine', 95, 45, .3, .45); tone(o, 'square', 60, 38, .07, .22); noise(o, .14, .3, 'lowpass', 450); break; // a big light switch
+    case 'hiss': noise(o, .55, .16, 'bandpass', 1900, 0, 500, 1.4); break;
     case 'click': tone(o, 'square', 1900, 700, .035, .12); noise(o, .02, .12, 'highpass', 3000); break;
     case 'grab': tone(o, 'sine', 160, 90, .07, .2); noise(o, .04, .05, 'lowpass', 700); break;
     case 'arrive': tone(o, 'sine', 110, 520, 1.6, .1, 0, .5); tone(o, 'triangle', 220, 1040, 1.6, .04, 0, .6); noise(o, 1.6, .03, 'bandpass', 600, 0, 5200, 3); break;
