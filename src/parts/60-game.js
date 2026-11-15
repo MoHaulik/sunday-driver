@@ -35,7 +35,7 @@ function updHands(dt) {
   IN.hands = n; IN.pressT = press ? (IN.pressT || 0) + dt : 0; const pr = SIM ? press : IN.pressT > .08; IN.press = pr && !IN.pressHeld; IN.pressHeld = pr;
   if (!IN.auto) { IN.steer = clamp(-WH.rot / WC.full, -1, 1); IN.thr = n ? 1 : 0; IN.brake = n ? 0 : .38; IN.hb = HB.pull > .3 ? HB.pull : 0; }
   if (tune && T > RADIO.cool && RADIO.on) { RADIO.cool = T + .9; RADIO.st = (RADIO.st + 1) % STATIONS.length; sfx('click'); say('♪ ' + STATIONS[RADIO.st].name, 1.6); } // touch the middle screen: next station
-  if (IN.honk && T > WH.horn) { WH.horn = T + (has('horn') ? 1 : .7); sfx(has('horn') ? 'jingle' : 'horn'); for (const r of RIV) { const d = r.prog - P.prog; if (d > 0 && d < 34) r.honk = 2.2; } }
+  if (IN.honk && T > WH.horn) { WH.horn = T + (has('horn') ? 1 : .7); sfxAt(has('horn') ? 'jingle' : 'horn', rig.localToWorld(_v4.set(CFG.CX, -.45, -1.7))); for (const r of RIV) { const d = r.prog - P.prog; if (d > 0 && d < 34) r.honk = 2.2; } }
 }
 
 // ═══════════════════════════ THE CAR: a point with a heading and a velocity. Grip pulls the velocity round to the heading; the handbrake lets go of it ═══════════════════════════

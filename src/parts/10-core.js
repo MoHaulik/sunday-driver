@@ -31,7 +31,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(SIM ? 74 : 36, innerWidth / innerHeight, .04, 1500); scene.add(camera);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, stencil: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
-renderer.setClearColor(0x000000, 0); renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
+renderer.setClearColor(0x000000, 0); renderer.xr.enabled = true; renderer.xr.setFoveation(1); renderer.info.autoReset = false; // fixed foveation: the cheapest frame-rate win on Quest renderer.xr.setReferenceSpaceType('local-floor');
 renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1; renderer.localClippingEnabled = true;
 document.body.prepend(renderer.domElement);
 const $ = id => document.getElementById(id);

@@ -28,7 +28,7 @@ function tone(o, type, f, f2, d, g, t = 0, a = .004) { const c = A.ctx, t0 = c.c
 function noise(o, d, g, type = 'highpass', f = 1000, t = 0, f2, q = 1) { const c = A.ctx, t0 = c.currentTime + t, s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain(); s.buffer = A.nb;
   fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f, t0); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t0 + d); gn.gain.setValueAtTime(Math.max(g, .0002), t0); gn.gain.exponentialRampToValueAtTime(.0001, t0 + d);
   s.connect(fl).connect(gn).connect(o); s.start(t0, Math.random() * 1.5); s.stop(t0 + d + .02); }
-function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.sfx;
+function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.tmp || A.sfx;
   switch (type) {
     case 'click': tone(o, 'square', 1900, 700, .035, .12); noise(o, .02, .12, 'highpass', 3000); break;
     case 'grab': tone(o, 'sine', 160, 90, .07, .2); noise(o, .04, .05, 'lowpass', 700); break;

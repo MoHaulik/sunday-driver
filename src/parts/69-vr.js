@@ -66,7 +66,7 @@ function vr(dt) {
   VIS.v += ((VIS.down ? 0 : -1.45) - VIS.a) * 160 * dt - VIS.v * 11 * dt; VIS.a += VIS.v * dt; VIS.g.rotation.x = VIS.a;
   if (G.phase === 'finish' && G.place) { let ch = false; for (const r of RIV) if ((!r.done || r.done > G.place) && !VIS.beat.has(r.name)) { VIS.beat.add(r.name); ch = true; } if (ch) paintList(); }
   // the bobblehead
-  const bh = BOB.g.localToWorld(_v4.set(0, .075, 0)); rig.worldToLocal(bh); PH.forEach((h, i) => { if (h.ok && tapped(HV[i], 'bob', bh, .045, h)) { const v = HV[i].v; BOB.vz -= clamp(v.x, -2, 2) * 22 + rand(-3, 3); BOB.vx += clamp(v.z, -2, 2) * 22 + rand(-3, 3); if (T > BOB.cd) { BOB.cd = T + .3; sfx('squeak', .6); } } });
+  const bh = BOB.g.localToWorld(_v4.set(0, .075, 0)); rig.worldToLocal(bh); PH.forEach((h, i) => { if (h.ok && tapped(HV[i], 'bob', bh, .045, h)) { const v = HV[i].v; BOB.vz -= clamp(v.x, -2, 2) * 22 + rand(-3, 3); BOB.vx += clamp(v.z, -2, 2) * 22 + rand(-3, 3); if (T > BOB.cd) { BOB.cd = T + .3; sfxAt('squeak', BOB.h.getWorldPosition(new V()), .6); } } });
   const jb = P.vf * .02 + P.shake * 3; BOB.vz += (-90 * BOB.bz - 2.6 * BOB.vz + P.ay * .9 + rand(-1, 1) * jb) * dt; BOB.vx += (-90 * BOB.bx - 2.6 * BOB.vx - P.ax * .9 + rand(-1, 1) * jb) * dt;
   BOB.bz = clamp(BOB.bz + BOB.vz * dt, -.8, .8); BOB.bx = clamp(BOB.bx + BOB.vx * dt, -.8, .8); BOB.h.rotation.set(BOB.bx, 0, BOB.bz);
   // the indicator
@@ -84,7 +84,7 @@ function vr(dt) {
 }
 const SH0 = new V(SHD.x, SHD.y, SHD.z), dashY = z => -.196 - Math.max(0, -.63 - z) * .1;
 function duckCab(dt) { const p = DUCK.g.position, v = DUCK.v, fl = -rig.position.y + .02; if (DUCK.st === 'rest') return; v.y -= 9.8 * dt; const py = p.y; p.addScaledVector(v, dt);
-  const bump = (n, k = .45) => { const vn = v.dot(n); if (vn < 0) { v.addScaledVector(n, -(1 + k) * vn); v.multiplyScalar(.85); DUCK.w.multiplyScalar(.6); if (-vn > 1.2 && T > DUCK.cd) { DUCK.cd = T + .15; sfx('squeak', clamp(-vn * .15, .2, .7)); } } };
+  const bump = (n, k = .45) => { const vn = v.dot(n); if (vn < 0) { v.addScaledVector(n, -(1 + k) * vn); v.multiplyScalar(.85); DUCK.w.multiplyScalar(.6); if (-vn > 1.2 && T > DUCK.cd) { DUCK.cd = T + .15; sfxAt('squeak', DUCK.g.getWorldPosition(new V()), clamp(-vn * .15, .2, .7)); } } };
   const ds = _v.subVectors(p, SH0).dot(SN); if (ds < .03 && p.x > SHD.x && p.x < SHD.x + SHD.w && p.y > SHD.y - .02) { p.addScaledVector(SN, .03 - ds); bump(SN); } // the windscreen
   if (p.y > .33) { p.y = .33; bump(_v.set(0, -1, 0)); }
   if (p.z < -.57 && p.z > -1 && p.x > -.345 && p.x < 1.065) { const dy = dashY(p.z); if (p.y < dy && py >= dy - .01) { p.y = dy; bump(_v.set(0, 1, 0), .35); if (Math.abs(v.y) < .25 && v.length() < .4) { DUCK.st = 'rest'; DUCK.g.rotation.set(0, DUCK.g.rotation.y, 0); return; } } else if (p.y < dy && p.y > -.42 && p.z > -.62) { p.z = -.56; bump(_v.set(0, 0, 1)); } }
@@ -93,7 +93,7 @@ function duckCab(dt) { const p = DUCK.g.position, v = DUCK.v, fl = -rig.position
 function duckOut() { world.attach(DUCK.g); rig.getWorldQuaternion(_q); world.getWorldQuaternion(_q2); DUCK.v.applyQuaternion(_q).applyQuaternion(_q2.invert()).add(_v.set(P.vx, 0, P.vz)); DUCK.st = 'world'; duckSten(true); sfx('whoosh', .4); }
 function duckWorld(dt) { const p = DUCK.g.position, v = DUCK.v; v.y -= 9.8 * dt; p.addScaledVector(v, dt); const n = nearest(p.x, p.z), gy = (n.d < W + 3.5 ? SY[n.i] : hill2(p.x, p.z)) + .02;
   if (p.y < gy) { p.y = gy; if (v.y < -1.5 && T > DUCK.cd) { DUCK.cd = T + .2; sfx('squeak', .4); } v.y = Math.abs(v.y) * .35; v.x *= .7; v.z *= .7; DUCK.w.multiplyScalar(.5); if (v.y < .5) v.y = 0; }
-  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, sp = c === P ? P.vf : c.v; if (sp > 3 && Math.hypot(o.x - p.x, o.z - p.z) < 1.5 && p.y - (o.y || gy) < 1.4 && T > DUCK.cd) { const ps = c === P ? P.psi : o.psi; DUCK.cd = T + .5; v.set(Math.sin(ps) * sp * 1.15 + rand(-2, 2), 4 + sp * .2, -Math.cos(ps) * sp * 1.15 + rand(-2, 2)); DUCK.w.set(rand(-20, 20), rand(-20, 20), rand(-20, 20)); sfx('squeak'); pow(_v.copy(p).add(_v2.set(0, 1.2, 0)), 1.3, QUACK); chips(p, '#ffd23f', 10, 2); } } // QUACK
+  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, sp = c === P ? P.vf : c.v; if (sp > 3 && Math.hypot(o.x - p.x, o.z - p.z) < 1.5 && p.y - (o.y || gy) < 1.4 && T > DUCK.cd) { const ps = c === P ? P.psi : o.psi; DUCK.cd = T + .5; v.set(Math.sin(ps) * sp * 1.15 + rand(-2, 2), 4 + sp * .2, -Math.cos(ps) * sp * 1.15 + rand(-2, 2)); DUCK.w.set(rand(-20, 20), rand(-20, 20), rand(-20, 20)); sfxAt('squeak', DUCK.g.getWorldPosition(new V())); pow(_v.copy(p).add(_v2.set(0, 1.2, 0)), 1.3, QUACK); chips(p, '#ffd23f', 10, 2); } } // QUACK
   if (p.y < -60) duckHome(); }
 
 // ── power windows, two buttons on your door: tap and the glass runs all the way, hold and it creeps. Glass up is your own room; glass down is the other world
@@ -179,8 +179,39 @@ function strike(st) { const far = st < .6 || Math.random() < .35, dist = far ? r
   for (let i = 0; i < 26; i++) { p = p.clone().add(new V(0, -(top - gy) / 26, 0)).addScaledVector(side, rand(-7, 7) * (1 - i / 34)); pts[0].push(p); if (pts.length < 4 && i > 3 && i < 18 && Math.random() < .2) { let q = p.clone(); const br = [q], dir = Math.random() < .5 ? -1 : 1; for (let j = 0; j < 8; j++) { q = q.clone().add(new V(0, -rand(3, 6), 0)).addScaledVector(side, dir * rand(2, 8)); br.push(q); } pts.push(br); } }
   BOLT.forEach(m => { const a2 = m.geometry.attributes.position; let n = 0; pts.forEach((line, li) => { const w = m.w * (li ? .55 : 1); for (let i = 0; i < line.length - 1 && n < BOLTMAX; i++, n++) { const A0 = line[i], B0 = line[i + 1], s0 = w * (1 - i / line.length * .5) / 2, s1 = w * (1 - (i + 1) / line.length * .5) / 2;
       [[A0, -s0], [A0, s0], [B0, s1], [A0, -s0], [B0, s1], [B0, -s1]].forEach(([q, o], j) => a2.setXYZ(n * 6 + j, q.x + side.x * o, q.y, q.z + side.z * o)); } }); a2.needsUpdate = true; m.geometry.setDrawRange(0, n * 6); });
-  STRK.t = 0; STRK.k = far ? .45 : 1; STRK.far = far; if (A.ctx) { const d = dist / 340 * .55; noise(A.sfx, far ? 3 : 4, (far ? .25 : .5) * st, 'lowpass', far ? 130 : 220, d, 45, .7); noise(A.sfx, 2.2, (far ? .12 : .3) * st, 'lowpass', 500, d + .15, 80); if (!far) noise(A.sfx, .5, .35 * st, 'highpass', 1500, d * .3); } } // thunder: a crack if it was close, then the long roll
+  STRK.t = 0; STRK.k = far ? .45 : 1; STRK.far = far; if (A.ctx) { const d = dist / 340 * .55, o = spat(world.localToWorld(new V(x, gy + 60, z)), true); noise(o, far ? 3 : 4, (far ? .25 : .5) * st, 'lowpass', far ? 130 : 220, d, 45, .7); noise(o, 2.2, (far ? .12 : .3) * st, 'lowpass', 500, d + .15, 80); if (!far) noise(o, .5, .35 * st, 'highpass', 1500, d * .3); } } // thunder: a crack if it was close, then the long roll
 function storm(dt) { const st = WX.storm || 0; if (st > .05 && T > STRK.next && ['race', 'finish'].includes(G.phase)) { STRK.next = T + rand(2.5, 8) / (.35 + st); strike(st); }
   STRK.t += dt; const t = STRK.t, F = (Math.max(0, 1 - t / .08) + (t > .14 && t < .22 ? .85 : 0) + (t > .22 ? .55 * Math.exp(-(t - .22) * 7) : 0)) * STRK.k; // flash, gap, flash, fade
   BOLT.forEach(m => { m.material.opacity = t < .45 && !STRK.far || t < .3 ? Math.min(1, F * 1.6) * m.op : 0; m.visible = m.material.opacity > .01; });
   if (F > .005) { FLC.setRGB(.55, .58, .95).multiplyScalar(F); for (const k of ['uSunC', 'uShC', 'uZen', 'uHor', 'uCl', 'uCs']) UW[k].value.add(FLC); UW.uFogC.value.add(FLC.multiplyScalar(.6)); hemiL.intensity += F * 1.3; sunL.intensity += F * .6; } }
+
+// ═══════════════════════════ SOUND IN SPACE: one-shots come from where they happen. Thunder from the strike, a crash from the contact, the horn from the nose, the duck from the duck ═══════════════════════════
+const SPOOL = []; let spk = 0;
+function spat(p, dirOnly) { let pn = SPOOL[spk]; if (!pn) { pn = SPOOL[spk] = A.ctx.createPanner(); pn.panningModel = 'HRTF'; pn.distanceModel = 'inverse'; pn.refDistance = 1.2; pn.rolloffFactor = .8; pn.connect(A.sfx); } spk = (spk + 1) % 8;
+  if (dirOnly) { camera.getWorldPosition(_v3); p = _v3.clone().add(_v2.subVectors(p, _v3).normalize().multiplyScalar(2.5)); } setPan(pn, p); return pn; } // far things: only their direction counts, not their distance
+function sfxAt(type, p, vol = 1) { if (!A.ctx) return; A.tmp = spat(p); sfx(type, vol); A.tmp = null; }
+
+// ═══════════════════════════ PERFORMANCE: a frame budget we can see (?perf), and quality that steps down by itself before the Quest drops frames ═══════════════════════════
+const PERF = { on: /[?&]perf/.test(location.search), q: 0, ms: 13, slow: 0, good: 0, t: 0, calls: 0, tris: 0, base: MIRR.map(m => m.every) }, PC = ctex(256, 72);
+const perfTag = mesh(new THREE.PlaneGeometry(.12, .034), lit({ map: PC.tex, transparent: true }), cab); perfTag.position.set(-.2, .06, -.62); look(perfTag); perfTag.visible = PERF.on;
+function quality(q) { PERF.q = q; MIRR.forEach((m, i) => { m.every = PERF.base[i] * (q >= 1 ? 2 : 1); }); SKYL[1].visible = q < 2; CLOUDS.children[1].visible = q < 2; CLOUDS.children.forEach(m => { m.count = q >= 3 ? m.instanceMatrix.count >> 1 : m.instanceMatrix.count; }); RTR.forEach(t => { t.rb.m.material.uniforms.uA.value *= q >= 3 ? 0 : 1; }); }
+function perf(dt) { const I = renderer.info.render; PERF.calls = I.calls; PERF.tris = I.triangles; renderer.info.reset(); // last frame's totals, mirrors included
+  PERF.ms += (dt * 1000 - PERF.ms) * .05; const budget = renderer.xr.isPresenting ? 14.5 : 18; // Quest 3 at 72 Hz has 13.9 ms
+  if (PERF.ms > budget) { PERF.slow += dt; PERF.good = 0; } else { PERF.slow = 0; PERF.good += dt; }
+  if (PERF.slow > 2 && PERF.q < 3) { quality(PERF.q + 1); PERF.slow = 0; console.log('[perf] quality down →', PERF.q); } if (PERF.good > 20 && PERF.q > 0) { quality(PERF.q - 1); PERF.good = 0; }
+  if (PERF.on && T > PERF.t) { PERF.t = T + .5; const c = PC.ctx; c.clearRect(0, 0, 256, 72); c.fillStyle = 'rgba(10,6,24,.82)'; c.beginPath(); c.roundRect(0, 0, 256, 72, 10); c.fill(); c.font = '600 21px "Chakra Petch",monospace'; c.fillStyle = PERF.ms > budget ? '#ff5f7a' : '#7dff9a';
+    c.fillText(`${(1000 / PERF.ms).toFixed(0)} fps · ${PERF.ms.toFixed(1)} ms · Q${PERF.q}`, 10, 28); c.fillStyle = '#cfd3dc'; c.fillText(`${PERF.calls} calls · ${(PERF.tris / 1000).toFixed(0)}k tris`, 10, 56); PC.tex.needsUpdate = true; } }
+
+// ═══════════════════════════ THE GHOST: your last lap, driven again beside you — see-through pink, with a hero streak, and split times against it ═══════════════════════════
+const GH = { rec: [], last: (() => { try { return JSON.parse(localStorage.getItem('sd.ghost')) || []; } catch (e) { return []; } })(), acc: 0, lap: 0, q: 0, g: new THREE.Group() };
+{ const m = new THREE.Mesh(carGeo('#ff2d8a'), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, ...STEN,
+    vertexShader: `varying vec3 vN,vV;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader: `uniform float uTime;varying vec3 vN,vV;void main(){float f=pow(1.-abs(dot(normalize(vN),vV)),1.4);gl_FragColor=vec4(vec3(1.,.32,.74)*(.16+.9*f)*(.9+.1*sin(uTime*14.)),1.);}`, uniforms: { uTime: UW.uTime } }));
+  m.renderOrder = RO.fx; GH.g.add(m); GH.g.rotation.order = 'YXZ'; GH.g.visible = false; world.add(GH.g); GH.rb = new Ribbon(30, '#ff4fa3', world, .9); GH.rb.m.material.uniforms.uA.value = .55; }
+const ghostAt = t => { const L = GH.last; let lo = 0, hi = L.length - 1; if (hi < 1 || t > L[hi][0]) return null; while (hi - lo > 1) { const m = (lo + hi) >> 1; L[m][0] < t ? lo = m : hi = m; } const a = L[lo], b = L[hi], k = clamp((t - a[0]) / Math.max(b[0] - a[0], 1e-4), 0, 1); return [lerp(a[1], b[1], k), lerp(a[2], b[2], k), lerp(a[3], b[3], k), a[4] + wrapPi(b[4] - a[4]) * k]; };
+function ghost(dt) { const racing = G.phase === 'race';
+  if (racing) { if (G.lap !== GH.lap) { if (GH.lap && GH.rec.length > 20) { GH.last = GH.rec; try { localStorage.setItem('sd.ghost', JSON.stringify(GH.last.map(r => r.map(v => +v.toFixed(2))))); } catch (e) { } } GH.rec = []; GH.lap = G.lap; GH.q = 0; GH.rb.pts.length = 0; } // a finished lap becomes the ghost
+    GH.acc += dt; if (GH.acc > .1) { GH.acc = 0; GH.rec.push([P.lapT, P.x, P.y, P.z, P.psi, ((P.prog % TL) + TL) % TL]); } } else if (G.phase !== 'finish') GH.lap = 0;
+  const s = racing && GH.last.length ? ghostAt(P.lapT) : null; GH.g.visible = GH.rb.m.visible = !!s; if (!s) return;
+  GH.g.position.set(s[0], s[1], s[2]); GH.g.rotation.set(0, -s[3], 0); GH.rb.push(GH.g.position, .4); GH.rb.build(YA, .7);
+  const lp = ((P.prog % TL) + TL) % TL, qn = Math.floor(lp / TL * 4); if (qn > GH.q && qn < 4) { GH.q = qn; const g = GH.last.find(r => r[5] >= lp); if (g) { const d = P.lapT - g[0]; say(`GHOST ${d < 0 ? '−' : '+'}${Math.abs(d).toFixed(1)}s`, 1.4); sfx(d < 0 ? 'coin' : 'tick', .5); } } } // splits: green coin if you are ahead

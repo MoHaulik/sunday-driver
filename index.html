@@ -104,7 +104,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(SIM ? 74 : 36, innerWidth / innerHeight, .04, 1500); scene.add(camera);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, stencil: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
-renderer.setClearColor(0x000000, 0); renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor');
+renderer.setClearColor(0x000000, 0); renderer.xr.enabled = true; renderer.xr.setFoveation(1); renderer.info.autoReset = false; // fixed foveation: the cheapest frame-rate win on Quest renderer.xr.setReferenceSpaceType('local-floor');
 renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1; renderer.localClippingEnabled = true;
 document.body.prepend(renderer.domElement);
 const $ = id => document.getElementById(id);
@@ -632,7 +632,7 @@ function tone(o, type, f, f2, d, g, t = 0, a = .004) { const c = A.ctx, t0 = c.c
 function noise(o, d, g, type = 'highpass', f = 1000, t = 0, f2, q = 1) { const c = A.ctx, t0 = c.currentTime + t, s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain(); s.buffer = A.nb;
   fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f, t0); if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t0 + d); gn.gain.setValueAtTime(Math.max(g, .0002), t0); gn.gain.exponentialRampToValueAtTime(.0001, t0 + d);
   s.connect(fl).connect(gn).connect(o); s.start(t0, Math.random() * 1.5); s.stop(t0 + d + .02); }
-function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.sfx;
+function sfx(type, x = 1, y = 0) { if (!A.ctx) return; const o = A.tmp || A.sfx;
   switch (type) {
     case 'click': tone(o, 'square', 1900, 700, .035, .12); noise(o, .02, .12, 'highpass', 3000); break;
     case 'grab': tone(o, 'sine', 160, 90, .07, .2); noise(o, .04, .05, 'lowpass', 700); break;
@@ -722,7 +722,7 @@ function updHands(dt) {
   IN.hands = n; IN.pressT = press ? (IN.pressT || 0) + dt : 0; const pr = SIM ? press : IN.pressT > .08; IN.press = pr && !IN.pressHeld; IN.pressHeld = pr;
   if (!IN.auto) { IN.steer = clamp(-WH.rot / WC.full, -1, 1); IN.thr = n ? 1 : 0; IN.brake = n ? 0 : .38; IN.hb = HB.pull > .3 ? HB.pull : 0; }
   if (tune && T > RADIO.cool && RADIO.on) { RADIO.cool = T + .9; RADIO.st = (RADIO.st + 1) % STATIONS.length; sfx('click'); say('♪ ' + STATIONS[RADIO.st].name, 1.6); } // touch the middle screen: next station
-  if (IN.honk && T > WH.horn) { WH.horn = T + (has('horn') ? 1 : .7); sfx(has('horn') ? 'jingle' : 'horn'); for (const r of RIV) { const d = r.prog - P.prog; if (d > 0 && d < 34) r.honk = 2.2; } }
+  if (IN.honk && T > WH.horn) { WH.horn = T + (has('horn') ? 1 : .7); sfxAt(has('horn') ? 'jingle' : 'horn', rig.localToWorld(_v4.set(CFG.CX, -.45, -1.7))); for (const r of RIV) { const d = r.prog - P.prog; if (d > 0 && d < 34) r.honk = 2.2; } }
 }
 
 // ═══════════════════════════ THE CAR: a point with a heading and a velocity. Grip pulls the velocity round to the heading; the handbrake lets go of it ═══════════════════════════
@@ -967,7 +967,7 @@ const ITEMS = {
   heart: { n: 'PLUSH HEART', p: 70, at: HP(-.05), dy: .09, b: g => { const r = cm('#ff4f8b', .95), t = ctx2(64, 32, c => { c.fillStyle = '#f7f4ec'; c.fillRect(0, 0, 64, 32); c.fillStyle = '#3a3d44'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'italic 500 13px "Chakra Petch",sans-serif'; c.fillText('from mom', 32, 16); });
     mesh(at(cyl(.0006, .0006, .05, 4), 0, -.025, 0), M.black, g); mesh([at(sph(.011), -.008, -.058, 0), at(sph(.011), .008, -.058, 0), at(new THREE.ConeGeometry(.0155, .02, 16), 0, -.07, 0, Math.PI)], r, g); mesh(new THREE.PlaneGeometry(.022, .011).translate(.012, -.085, .006), cm('#fff', .8, 0, { map: t.tex, side: THREE.DoubleSide }), g); },
     f: g => hang(g, .07, .4, 1) },
-  horn: { n: 'JINGLE HORN', p: 80, d: g => { const m = GOLD(); mesh([at(new THREE.ConeGeometry(.014, .03, 16, 1, true), .012, .02, 0, 0, 0, Math.PI / 2), at(cyl(.003, .003, .036), -.016, .02, 0, 0, 0, Math.PI / 2), at(sph(.005, 10, 8), -.034, .02, 0)], m, g); } },
+  horn: { n: 'JINGLE HORN', p: 80, pv: () => { const g = grp(cab, -.12, -.25, -.47); ITEMS.horn.d(g); return g; }, d: g => { const m = GOLD(); mesh([at(new THREE.ConeGeometry(.014, .03, 16, 1, true), .012, .02, 0, 0, 0, Math.PI / 2), at(cyl(.003, .003, .036), -.016, .02, 0, 0, 0, Math.PI / 2), at(sph(.005, 10, 8), -.034, .02, 0)], m, g); } },
   fuzz: { n: 'FUZZY DICE', p: 90, at: HP(.066), dy: .1, b: g => { const t = ctx2(64, 64, c => { c.fillStyle = '#ff6fb5'; c.fillRect(0, 0, 64, 64); for (let k = 0; k < 400; k++) { c.fillStyle = `rgba(255,255,255,${Math.random() * .25})`; c.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); } c.fillStyle = '#fff'; for (const [x, y] of [[16, 16], [48, 48], [32, 32], [16, 48], [48, 16]]) { c.beginPath(); c.arc(x, y, 6, 0, 7); c.fill(); } }), m = cm('#ffffff', 1, 0, { map: t.tex });
     mesh([at(cyl(.0007, .0007, .07, 4), -.008, -.035, 0, 0, 0, -.12), at(cyl(.0007, .0007, .05, 4), .009, -.025, 0, 0, 0, .2)], M.black, g); mesh([at(box(.03, .03, .03), -.014, -.084, 0, .3, .5, .1), at(box(.03, .03, .03), .017, -.062, .004, .2, -.4, .3)], m, g); },
     f: g => { hang(g, .08, -.3, 1.1); DICE.visible = false; } },
@@ -979,10 +979,7 @@ const ITEMS = {
   cat: { n: 'LUCKY CAT', p: 150, at: D(.44, -.72), b: g => { const w = W1(); mesh([at(sph(.02).scale(1, 1.1, .85), 0, .02, 0), at(sph(.016), 0, .05, 0), at(new THREE.ConeGeometry(.006, .011, 4), -.009, .064, 0), at(new THREE.ConeGeometry(.006, .011, 4), .009, .064, 0)], w, g);
     mesh(at(tor(.0125, .0022, 20, 6), 0, .035, 0, Math.PI / 2), cm('#e3372e', .5), g); mesh([at(sph(.0032, 8, 6), 0, .031, .015), at(box(.016, .022, .002), -.006, .018, .019)], GOLD(), g); mesh([at(box(.006, .0013, .002), -.006, .052, .0155), at(box(.006, .0013, .002), .006, .052, .0155)], M.black, g);
     g.paw = grp(g, .016, .04, .006); mesh(at(box(.008, .02, .008), 0, .01, 0), w, g.paw); }, f: g => { look(g, 0); ANIM.push(() => { g.paw.rotation.z = -.2 + Math.sin(T * 5) * .45; }); } },
-  tyres: { n: 'STICKY TYRES', p: 160, at: [.982, -.318, -.5625], d: g => { mesh(at(tor(.02, .009, 24, 10), 0, .03, 0), M.rubber, g); mesh(at(cyl(.013, .013, .012, 16), 0, .03, 0, Math.PI / 2), M.alu, g); },
-    b: g => { const t = ctx2(256, 112, c => { c.fillStyle = '#16181d'; c.fillRect(0, 0, 256, 112); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'italic 800 46px Unbounded,sans-serif'; c.fillStyle = '#ffd23f'; c.fillText('STICKY', 128, 40); c.fillStyle = '#fff'; c.font = 'italic 700 34px "Chakra Petch",sans-serif'; c.fillText('TYRES · +10% GRIP', 128, 86); }); mesh(new THREE.PlaneGeometry(.058, .025), cm('#fff', .6, 0, { map: t.tex }), g); g.rotation.set(-.1, 0, .04); },
-    x: () => { CFG.GRIP *= 1.1; } },
-  neon: { n: 'NEON KIT', p: 180, d: g => { mesh([at(tor(.022, .003, 28, 6), 0, .03, 0), at(box(.05, .004, .004), 0, .004, 0)], M.neon, g); },
+  neon: { n: 'NEON KIT', p: 180, pv: () => { const g = grp(cab); mesh([at(box(1.36, .006, .006), CX, -.405, -.8), at(box(.006, .006, .9), -.322, -.21, -.4), at(box(.006, .006, .9), mir(-.322), -.21, -.4)], M.neon, g); return g; }, d: g => { mesh([at(tor(.022, .003, 28, 6), 0, .03, 0), at(box(.05, .004, .004), 0, .004, 0)], M.neon, g); },
     x: () => { mesh([at(box(1.36, .006, .006), CX, -.405, -.8), at(box(.006, .006, .9), -.322, -.21, -.4), at(box(.006, .006, .9), mir(-.322), -.21, -.4)], M.neon); ANIM.push(() => M.neon.color.setHSL(T * .12 % 1, 1, .62)); } },
   disco: { n: 'DISCO BALL', p: 200, at: HP(.024), dy: .09, b: g => { mesh(at(cyl(.0006, .0006, .05, 4), 0, -.025, 0), M.black, g); g.ball = mesh(at(new THREE.IcosahedronGeometry(.018, 1), 0, 0, 0), cm('#e9ecf2', .12, 1, { flatShading: true }), g); g.ball.position.y = -.066; },
     f: g => { hang(g, .066, 0, 1.2); ANIM.push(() => { g.ball.rotation.y = T * 1.4; }); } },
@@ -990,34 +987,60 @@ const ITEMS = {
     mesh(at(cyl(.024, .026, .028, 24), 0, 0, -.014, Math.PI / 2), M.black, g); mesh(tor(.024, .003, 28, 6), M.alu, g); mesh(new THREE.CircleGeometry(.022, 24).translate(0, 0, .001), lit({ map: t.tex }), g); mesh(at(cyl(.003, .003, .035), 0, -.03, -.01), M.black, g);
     g.nd = grp(g, 0, -.002, .003); mesh(at(box(.019, .0018, .001), .008, 0, 0), lit({ color: '#ff5a1f' }), g.nd); },
     f: g => { look(g); let a = 0; ANIM.push(dt => { a += ((P.boost > 0 ? 1 : P.vf / CFG.VMAX * .7) - a) * (1 - Math.exp(-dt * 6)); g.nd.rotation.z = 3.6 - a * 4.3; }); }, x: () => { CFG.VMAX += 3; } },
-  pinkdash: { n: 'BUBBLEGUM PAINT', p: 250, d: g => { mesh(at(cyl(.018, .018, .032, 20), 0, .016, 0), cm('#ff6fb5', .4), g); mesh(at(cyl(.0185, .0185, .003, 20), 0, .033, 0), M.alu, g); mesh(at(new THREE.TorusGeometry(.017, .0012, 6, 16, Math.PI), 0, .033, 0), M.alu, g); },
-    x: () => { M.dash.color.set('#ff7cbd'); M.soft.color.set('#ff4f9e'); M.frame.color.set('#5b2a86'); } },
-  gold: { n: 'GOLD WHEEL', p: 300, d: g => { const m = GOLD(); mesh([at(tor(.025, .0045, 32, 8), 0, .03, 0), at(box(.05, .004, .004), 0, .03, 0), at(box(.004, .025, .004), 0, .018, 0)], m, g); },
+  gold: { n: 'GOLD WHEEL', p: 300, pv: () => { const g = grp(wheelS); mesh(tor(CFG.WHEEL.R, .019, 64, 10), GOLD(), g); return g; }, d: g => { const m = GOLD(); mesh([at(tor(.025, .0045, 32, 8), 0, .03, 0), at(box(.05, .004, .004), 0, .03, 0), at(box(.004, .025, .004), 0, .018, 0)], m, g); },
     x: () => { M.rim.color.set('#ffc93c'); M.rim.metalness = 1; M.rim.roughness = .26; } },
+  // ── real interior upgrades: they go where they belong, and they change how the cabin feels
+  star: { n: 'STARLIGHT ROOF', p: 260, host: () => grp(cab), b: g => { const lin = new THREE.Mesh(new THREE.PlaneGeometry(1.36, .8).rotateX(Math.PI / 2).translate(CX, .41, -.04), new THREE.MeshBasicMaterial({ color: '#130b2e', side: THREE.DoubleSide })); g.add(lin); // a velvet headliner over your head, and two hundred fibre-optic stars in it
+    const n = 220, pos = new Float32Array(n * 3), rr = new Float32Array(n); for (let i = 0; i < n; i++) { const x = rand(-.3, 1.02); pos.set([x, .405 - (x - CX) ** 2 * .04, rand(-.42, .34)], i * 3); rr[i] = Math.random(); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('aR', new THREE.BufferAttribute(rr, 1));
+    const pts = new THREE.Points(geo, new THREE.ShaderMaterial({ uniforms: { uTime: UW.uTime, uNight: UW.uNight }, ...ADD, vertexShader: `attribute float aR;varying float vR;void main(){vR=aR;vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=(2.+aR*3.)*1.6/max(-mv.z,.2);}`,
+      fragmentShader: `uniform float uTime,uNight;varying float vR;void main(){float d=length(gl_PointCoord-.5)*2.,tw=.55+.45*sin(uTime*(1.+vR*3.)+vR*40.);gl_FragColor=vec4(mix(vec3(1.,.8,.95),vec3(.75,.85,1.),vR)*smoothstep(1.,0.,d)*tw*(.55+.7*uNight),0.);}` })); pts.frustumCulled = false; g.add(pts); } },
+  fur: { n: 'FUR WHEEL', p: 180, host: () => grp(wheelS), b: g => { const geo = new THREE.TorusGeometry(CFG.WHEEL.R, .026, 18, 140), p = geo.attributes.position, n = geo.attributes.normal; for (let i = 0; i < p.count; i++) { const k = .002 + Math.random() * .006; p.setXYZ(i, p.getX(i) + n.getX(i) * k, p.getY(i) + n.getY(i) * k, p.getZ(i) + n.getZ(i) * k); } geo.computeVertexNormals(); mesh(geo, cm('#ff9fd0', .95), g); } }, // shaggy, pink, ridiculous
+  chrome: { n: 'CHROME GAUGES', p: 140, host: () => grp(cluster), b: g => { const m = cm('#f4f6ff', .1, 1); for (const s of [-1, 1]) mesh(at(tor(DIALR + .008, .0048, 56, 10), s * DIALX, -.006, .017), m, g); } },
+  mat: { n: 'LEOPARD DASH MAT', p: 150, host: () => { const g = grp(cab, CX + .1, -.2, -.79); g.rotation.x = .07; return g; }, b: g => { const t = artTex(512, 160, c => { c.fillStyle = '#ffb3d9'; c.fillRect(0, 0, 512, 160); for (let k = 0; k < 90; k++) { const x = rand(0, 512), y = rand(0, 160), r = rand(5, 11); c.fillStyle = '#ff7fbf'; c.beginPath(); c.ellipse(x, y, r * 1.3, r, rand(0, 3), 0, 7); c.fill(); c.strokeStyle = '#3a1240'; c.lineWidth = rand(2.5, 4); c.beginPath(); c.arc(x, y, r * 1.2, rand(0, 3), rand(3.5, 6)); c.stroke(); } });
+    mesh(at(box(.84, .004, .23), 0, 0, 0), cm('#ffffff', .95, 0, { map: t }), g); } },
+  lava: { n: 'LAVA LAMP', p: 160, host: () => grp(cab, .8, -.205, -.71), b: g => { mesh([at(new THREE.CylinderGeometry(.008, .018, .028, 20), 0, .014, 0), at(new THREE.CylinderGeometry(.014, .008, .018, 20), 0, .1, 0)], cm('#c8ccdc', .2, 1), g);
+    const gl = new THREE.Mesh(sph(1, 20, 14).scale(.016, .036, .016).translate(0, .064, 0), new THREE.MeshBasicMaterial({ color: '#ff4fa3', transparent: true, opacity: .45, depthWrite: false })); g.add(gl); g.bl = [0, 1, 2].map(k => mesh(sph(.006 + k * .0015, 12, 8), lit({ color: '#ffd23f' }), g)); },
+    f: g => ANIM.push(() => g.bl.forEach((b, k) => { b.position.set(Math.sin(T * .5 + k) * .003, .064 + Math.sin(T * (.45 + k * .13) + k * 2.1) * .025, 0); b.scale.setScalar(1 + Math.sin(T * 1.3 + k) * .2); })) }, // the blobs rise and sink, forever
 };
-function install(id) { const it = ITEMS[id]; let g = null; if (it.at) { g = grp(cab, ...it.at); it.b(g); if (it.f) it.f(g); } if (it.x) it.x(); return g; }
-const PED = [.18, .38, .58].map(x => new V(x, -.075, -.53));
-function paintTag(s) { const c = s.t.ctx, it = ITEMS[s.id], ok = SAVE.coins >= it.p; c.clearRect(0, 0, 256, 96); c.fillStyle = s.sold ? '#35cfa8' : ok ? '#fff6fb' : '#c9c4d6'; c.beginPath(); c.roundRect(4, 4, 248, 88, 18); c.fill(); c.strokeStyle = ink; c.lineWidth = 6; c.stroke();
-  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = ink; c.font = `700 ${it.n.length > 13 ? 22 : 26}px "Chakra Petch",sans-serif`; c.fillText(s.sold ? 'IT IS YOURS' : it.n, 128, 32); c.fillStyle = s.sold ? '#fff' : ok ? '#ff2d8a' : '#6b6580'; c.font = 'italic 800 32px Unbounded,sans-serif'; c.fillText(s.sold ? 'SOLD!' : it.p + '¢', 128, 66); s.t.tex.needsUpdate = true; }
-function shopOpen() { SHOP.open = 1; SHOP.t = T; SHOP.coins = -1; const pool = Object.keys(ITEMS).filter(k => !has(k)).sort(() => Math.random() - .5).slice(0, 3);
-  SHOP.slots = pool.map((id, k) => { const g = grp(cab, PED[k].x, PED[k].y, PED[k].z), it = ITEMS[id]; look(g, .4); mesh(at(cyl(.03, .032, .005, 28), 0, -.003, 0), M.black, g); mesh(at(tor(.032, .0016, 32, 6), 0, 0, 0, Math.PI / 2), lit({ color: '#ff2d8a' }), g);
-    const ds = it.dy ? 1.1 : 1.5, d = grp(g, 0, .004 + (it.dy || 0) * ds, 0); (it.d || it.b)(d); d.scale.setScalar(ds); const t = ctex(256, 96), tg = mesh(new THREE.PlaneGeometry(.08, .03).translate(0, -.022, .036), lit({ map: t.tex, transparent: true }), g); tg.rotation.x = -.25;
-    g.scale.setScalar(.001); return { id, g, d, t, sold: false, shake: 0, cool: 0 }; });
-  if (!pool.length) say('SOLD OUT · MAXIMUM DOPE', 3); else sfx('arrive'); }
-function shopClose() { SHOP.slots.forEach(s => cab.remove(s.g)); SHOP.slots = []; SHOP.open = 0; }
-function buy(k) { const s = SHOP.slots[k]; if (!s || s.sold || T < s.cool) return; s.cool = T + .7; const it = ITEMS[s.id], c = s.g.position.clone().add(_v.set(0, .03, 0));
-  if (SAVE.coins < it.p) { sfx('nope'); s.shake = .5; say(`NEED ${it.p - SAVE.coins}¢ MORE`, 1.6); return; }
-  SAVE.coins -= it.p; SAVE.own.push(s.id); save(); s.sold = true; s.d.visible = false; paintTag(s); sfx('buy'); burst(c, 36, 1.6); const g = install(s.id); if (g) burst(g.position.clone(), 22, 1.2); say(it.n, 2); }
+function install(id) { const it = ITEMS[id]; let g = null; if (it.host) { g = it.host(); it.b(g); if (it.f) it.f(g); } else if (it.at) { g = grp(cab, ...it.at); it.b(g); if (it.f) it.f(g); } if (it.x) it.x(); return g; }
+// ── the shop, VR first: every upgrade you don't own yet appears as a hologram exactly where it would go. Tap it and it's real. Paint comes as a fan of swatches: tap to try the colours on your whole cabin, tap again to buy
+const HOLO = new THREE.ShaderMaterial({ uniforms: { uTime: UW.uTime }, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+  vertexShader: `varying vec3 vN,vV;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+  fragmentShader: `uniform float uTime;varying vec3 vN,vV;void main(){float f=pow(1.-abs(dot(normalize(vN),vV)),2.),s=.65+.35*step(.5,fract(gl_FragCoord.y*.2-uTime*3.));gl_FragColor=vec4(mix(vec3(1.,.3,.7),vec3(.4,.9,1.),f)*(.18+.75*f)*s*(.85+.15*sin(uTime*23.)),1.);}` }); // see-through, scanlined, a little unstable
+const THEMES = [{ id: 'lav', n: 'LAVENDER', p: 0, c: ['#6a52cc', '#8b6ff0', '#3a2a6c', '#ff4fa3', '#3d2c72', '#ff8cc6'] }, { id: 'gum', n: 'BUBBLEGUM', p: 120, c: ['#ff7cbd', '#ff4f9e', '#5b2a86', '#ffffff', '#7a2456', '#ffd1e8'] },
+  { id: 'mint', n: 'MINT CHIP', p: 120, c: ['#4fd1b0', '#8ff0d8', '#1f5a5a', '#ff6fb5', '#21494a', '#fff2b0'] }, { id: 'blue', n: 'BLUEBERRY', p: 140, c: ['#4f7cff', '#7fd0ff', '#1d2a6e', '#ffe14d', '#1b2252', '#ff9fd0'] },
+  { id: 'lemon', n: 'LEMON', p: 140, c: ['#ffd84f', '#fff1a0', '#6a4a12', '#ff4fa3', '#5a3a10', '#7fd0ff'] }, { id: 'night', n: 'MIDNIGHT', p: 180, c: ['#2a1d4a', '#4a2f86', '#120c26', '#ff2d8a', '#1a1030', '#4fe0ff'] }], TKEYS = ['dash', 'soft', 'frame', 'rim', 'leather', 'tan'], TGT = {};
+const ownTheme = id => id === 'lav' || has('theme:' + id);
+function setTheme(id) { const th = THEMES.find(t => t.id === id) || THEMES[0]; TKEYS.forEach((k, i) => { TGT[k] = col(k === 'rim' && has('gold') ? '#ffc93c' : th.c[i]); }); }
+ANIM.push(dt => TKEYS.forEach(k => TGT[k] && M[k].color.lerp(TGT[k], 1 - Math.exp(-dt * 5)))); // the paint washes over the cabin
+const tagTex = (a, b, hot) => artTex(256, 96, c => { c.fillStyle = hot ? '#ff2d8a' : '#fff6fb'; c.beginPath(); c.roundRect(4, 4, 248, 88, 18); c.fill(); c.strokeStyle = ink; c.lineWidth = 6; c.stroke(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = hot ? '#fff' : ink; c.font = `700 ${a.length > 14 ? 21 : 25}px "Chakra Petch",sans-serif`; c.fillText(a, 128, 32, 236); c.fillStyle = hot ? '#fff' : '#ff2d8a'; c.font = 'italic 800 30px Unbounded,sans-serif'; c.fillText(b, 128, 66, 236); });
+function shopOpen() { SHOP.open = 1; SHOP.t = T; SHOP.slots = []; SHOP.pv = null; const box3 = new THREE.Box3();
+  for (const id of Object.keys(ITEMS).filter(k => !has(k))) { const it = ITEMS[id]; let g; if (it.pv) g = it.pv(); else if (it.host) { g = it.host(); it.b(g); } else if (it.at && it.b) { g = grp(cab, ...it.at); it.b(g); } else continue;
+    g.traverse(o => { if (o.isMesh) { if (o.material === INK || (o.material && o.material.side === THREE.BackSide && o.parent && o.parent.isMesh)) o.visible = false; else o.material = HOLO; } });
+    g.updateWorldMatrix(true, true); box3.setFromObject(g); const c = rig.worldToLocal(box3.getCenter(new V())), tag = mesh(new THREE.PlaneGeometry(.11, .041), lit({ map: tagTex(it.n, it.p + '¢'), transparent: true }), cab); tag.position.copy(c).add(_v.set(0, .06, .035)); look(tag);
+    SHOP.slots.push({ id, g, c, tag, cool: 0 }); }
+  SHOP.fan = grp(cab, .72, -.1, -.42); look(SHOP.fan, .6); SHOP.cards = THEMES.map((th, k) => { const pv = grp(SHOP.fan), a = (k - 2.5) * .3; pv.rotation.z = -a; const card = mesh(new THREE.PlaneGeometry(.045, .07).translate(0, .085, 0), lit({ map: null, transparent: true }), pv); card.position.z = k * .0008; return { th, pv, card }; }); paintCards();
+  sfx('arrive'); say('TAP A HOLOGRAM TO BUY · TAP A SWATCH TO PAINT', 3); }
+function paintCards() { SHOP.cards.forEach(({ th, card }) => { const own = ownTheme(th.id), cur = (SHOP.pv || SAVE.theme || 'lav') === th.id;
+  card.material.map = artTex(128, 200, c => { c.fillStyle = '#fffaf2'; c.beginPath(); c.roundRect(3, 3, 122, 194, 12); c.fill(); c.strokeStyle = cur ? '#ff2d8a' : ink; c.lineWidth = cur ? 9 : 5; c.stroke(); th.c.slice(0, 4).forEach((h, i) => { c.fillStyle = h; c.fillRect(14, 14 + i * 26, 100, 26); }); c.strokeStyle = ink; c.lineWidth = 3; c.strokeRect(14, 14, 100, 104);
+    c.fillStyle = ink; c.textAlign = 'center'; c.font = '700 19px "Chakra Petch",sans-serif'; c.fillText(th.n, 64, 146, 116); c.fillStyle = own ? '#2fbf8f' : '#ff2d8a'; c.font = 'italic 800 22px Unbounded,sans-serif'; c.fillText(own ? (cur ? '✓ ON' : 'OWNED') : SHOP.pv === th.id ? 'TAP = BUY' : th.p + '¢', 64, 180, 116); }); card.material.needsUpdate = true; }); }
+function shopClose() { if (!SHOP.open) return; SHOP.slots.forEach(s => { s.g.parent && s.g.parent.remove(s.g); cab.remove(s.tag); }); if (SHOP.fan) cab.remove(SHOP.fan); SHOP.slots = []; SHOP.cards = []; SHOP.open = 0; SHOP.pv = null; setTheme(SAVE.theme); }
+function buy(k) { const s = SHOP.slots[k]; if (!s || T < s.cool) return; s.cool = T + .8; const it = ITEMS[s.id];
+  if (SAVE.coins < it.p) { sfx('nope'); say(`NEED ${it.p - SAVE.coins}¢ MORE`, 1.6); return; }
+  SAVE.coins -= it.p; SAVE.own.push(s.id); save(); s.g.parent && s.g.parent.remove(s.g); cab.remove(s.tag); SHOP.slots.splice(k, 1); sfx('buy'); burst(s.c.clone(), 40, 1.6); install(s.id); if (s.id === 'gold') setTheme(SAVE.theme); say(it.n, 2); }
+function swatch(th) { if (ownTheme(th.id)) { SAVE.theme = th.id; SHOP.pv = null; save(); setTheme(th.id); sfx('click'); }
+  else if (SHOP.pv === th.id) { if (SAVE.coins < th.p) { sfx('nope'); say(`NEED ${th.p - SAVE.coins}¢ MORE`, 1.6); return; } SAVE.coins -= th.p; SAVE.own.push('theme:' + th.id); SAVE.theme = th.id; SHOP.pv = null; save(); sfx('buy'); burst(SHOP.fan.position.clone(), 30, 1.4); say(th.n + ' INTERIOR', 2); }
+  else { SHOP.pv = th.id; setTheme(th.id); sfx('whoosh', .4); } paintCards(); }
 function updShop(dt) { const want = (G.phase === 'finish' && G.t > 6.3) || (G.pause === 1 && G.pauseT > .7); if (want && !SHOP.open) shopOpen(); else if (!want && SHOP.open) shopClose(); if (!SHOP.open) return;
-  if (SHOP.coins !== SAVE.coins) { SHOP.coins = SAVE.coins; SHOP.slots.forEach(paintTag); }
-  SHOP.slots.forEach((s, k) => { const x = clamp((T - SHOP.t - k * .12) / .45, 0, 1) - 1; s.g.scale.setScalar(Math.max(.001, 1 + 2.7 * x * x * x + 1.7 * x * x)); s.d.rotation.y += dt * .9; s.g.position.y = PED[k].y + Math.sin(T * 2 + k) * .004; s.g.rotation.z = Math.sin(T * 50) * s.shake * .25; s.shake = Math.max(0, s.shake - dt);
-    _v4.copy(s.g.position).y += .03; for (const h of PH) if (h.ok) for (const t of h.tips) if (t.distanceTo(_v4) < .045) buy(k); if (SIM && KEY[String(k + 1)]) { KEY[String(k + 1)] = false; buy(k); } }); }
+  const pop = s01((T - SHOP.t) / .5); SHOP.slots.forEach((s, k) => { s.tag.scale.setScalar(.001 + pop); for (const h of PH) if (h.ok && !h.on) for (const t of h.tips) if (t.distanceTo(s.c) < .05) buy(k); if (SIM && KEY[String(k + 1)]) { KEY[String(k + 1)] = false; buy(k); } });
+  SHOP.fan.scale.setScalar(.001 + pop * 1.7); SHOP.cards.forEach((cd, k) => { cd.card.getWorldPosition(_v4); rig.worldToLocal(_v4).add(_v3.set(0, .085, 0).applyQuaternion(cd.pv.getWorldQuaternion(_q))); for (const h of PH) if (h.ok && !h.on && T > (cd.cool || 0)) for (const t of h.tips) if (t.distanceTo(_v4) < .03) { cd.cool = T + .6; swatch(cd.th); break; } }); }
 
 // ── the centre screen during the ceremony and the shop
 function miniPrize(m, all) { if (!(G.phase === 'finish' || G.pause === 1)) return false; G.miniT = T + .06; m.fillStyle = '#160e36'; m.fillRect(0, 0, 512, 288); m.textBaseline = 'middle';
   all.forEach((r, k) => { const y = 26 + k * 33; if (r === P) { m.fillStyle = 'rgba(255,45,138,.22)'; m.fillRect(10, y - 15, 250, 30); } m.fillStyle = k < 3 ? ['#ffd23f', '#e2e7ef', '#e09a58'][k] : '#6f7480'; m.font = 'italic 700 22px "Chakra Petch",sans-serif'; m.textAlign = 'left'; m.fillText(k + 1, 20, y); m.fillStyle = r.hex; m.fillRect(46, y - 9, 8, 18); m.fillStyle = r === P ? '#fff' : '#c9ccd3'; m.font = `${r === P ? 700 : 500} 21px "Chakra Petch",sans-serif`; m.fillText(r.name, 64, y); });
   m.textAlign = 'left'; const L = (s, y, cl = '#c9ccd3', f = '500 20px') => { m.fillStyle = cl; m.font = `${f} "Chakra Petch",sans-serif`; m.fillText(s, 290, y); };
-  if (SHOP.open) { L('PRIZE SHOP', 30, '#ff2d8a', 'italic 700 30px'); L('tap a prize to buy it', 76); L(G.pause ? 'START = drive on' : 'START = race again', 106); }
+  if (SHOP.open) { L('UPGRADES', 30, '#ff2d8a', 'italic 700 30px'); L('tap a hologram · swatches paint', 76); L(G.pause ? 'START = drive on' : 'START = race again', 106); }
   else if (G.phase === 'finish') { L('PRIZE MONEY', 30, '#ffd23f', 'italic 700 30px'); const e = G.earn; [[`RACE · P${G.place}`, e.race], ['LAPS', e.laps], [`MIRRORS · ${SMIR.filter(q => q.on).length}/2`, e.mir]].forEach(([a, b], k) => { if (G.t > 1.6 + k * .35) { L(a, 76 + k * 30); m.textAlign = 'right'; m.fillStyle = '#fff'; m.fillText('+' + b, 496, 76 + k * 30); m.textAlign = 'left'; } }); }
   m.fillStyle = '#ffd23f'; m.font = 'italic 800 46px Unbounded,sans-serif'; m.textAlign = 'right'; m.fillText((G.phase === 'finish' && G.t < 4.4 ? G.shown : SAVE.coins) + '¢', 496, 238); return true; }
 
@@ -1026,7 +1049,7 @@ function prizeReset() { G.earn = { laps: 0, race: 0, mir: 0 }; G.slow = 0; G.new
 function prizes(dt, sdt) { for (const d of DEB) { if (d.rest) continue; const o = d.m.o; d.v.y -= 9.8 * sdt; o.position.addScaledVector(d.v, sdt); o.rotation.x += d.w.x * sdt; o.rotation.y += d.w.y * sdt; o.rotation.z += d.w.z * sdt;
     if (o.position.y < d.gy) { o.position.y = d.gy; d.v.y *= -.32; d.v.x *= .55; d.v.z *= .55; d.w.multiplyScalar(.5); if (d.v.length() < .4) d.rest = 1; } }
   for (const f of ANIM) f(sdt); updConfetti(dt); updShop(dt); }
-SAVE.own.forEach(install); paintMedal(SAVE.medal); buildShelf();
+SAVE.own = SAVE.own.filter(k => ITEMS[k] || k.startsWith('theme:')); SAVE.own.filter(k => ITEMS[k]).forEach(install); setTheme(SAVE.theme || 'lav'); TKEYS.forEach(k => M[k].color.copy(TGT[k])); paintMedal(SAVE.medal); buildShelf();
 
 // ═══════════════════════════ STARTING THE CAR: a key you hold, push in and twist; a car that jumps awake; and a stack of burned CDs floating in the air for you to flip through and feed to the player ═══════════════════════════
 PH.forEach(h => { h.ctrl.addEventListener('selectstart', () => { h.held = true; }); h.ctrl.addEventListener('selectend', () => { h.held = false; }); h.tw = new V(1, 0, 0); h.pp = new V(); });
@@ -1270,7 +1293,7 @@ function pow(p, size, map) { const o = POW[powK++ % 3]; o.s.material.map = map |
 function chips(p, hex, n, spd) { for (let q = 0; q < n; q++) parts.emit(_v3.copy(p).add(_v4.set(rand(-.4, .4), rand(-.2, .3), rand(-.4, .4))), _v4.set(P.vx * .5 + rand(-spd, spd), rand(1, spd + 1), P.vz * .5 + rand(-spd, spd)), _c.set(hex), { life: rand(.5, 1.1), size: rand(.04, .08), grav: 9 }); }
 const kick = a => PEND.forEach(p => { p.vz += rand(-a, a) * 9; p.vx += rand(-a, a) * 9; }), spark = (p, n) => { for (let q = 0; q < n; q++) parts.emit(_v3.copy(p), _v4.set(P.vx * .6 + rand(-3, 3), rand(1, 5), P.vz * .6 + rand(-3, 3)), _c.set('#ffc46b'), { life: rand(.2, .5), size: .035, glow: 1 }); };
 function carHit(r, imp, side) { const tier = imp < 4 ? 0 : imp < 10 ? 1 : 2, o = r.g.position, p = _v.set((P.x + o.x) / 2, (P.y + o.y) / 2 + .7, (P.z + o.z) / 2).clone(); // a nudge, a hit, or a wreck-the-moment hit
-  P.hitT = T + .35; P.clean = 0; P.shake = Math.min(1, P.shake + [.25, .6, 1][tier]); sfx(tier ? 'bump' : 'squeak', [.4, .85, 1][tier]); r.sq = [.35, .7, 1][tier]; r.wob = [.05, .12, .2][tier] * side;
+  P.hitT = T + .35; P.clean = 0; P.shake = Math.min(1, P.shake + [.25, .6, 1][tier]); sfxAt(tier ? 'bump' : 'squeak', world.localToWorld(p.clone()), [.4, .85, 1][tier]); r.sq = [.35, .7, 1][tier]; r.wob = [.05, .12, .2][tier] * side;
   chips(p, r.hex, [3, 10, 26][tier], [1.5, 3, 5][tier]); chips(p, P.hex, [2, 6, 14][tier], [1.5, 3, 5][tier]); spark(p, [3, 12, 30][tier]); if (tier) kick(tier * .7);
   if (tier === 1) pow(p, 1.4); if (tier === 2) { pow(p.add(_v2.set(0, .5, 0)), 2.3); r.spin = 1.4; r.v *= .45; G.slow = T + .22; sfx('crack'); say(`${r.name} SPUN OUT`, 1.4); } }
 function wallHit(hit, side, nx, nz) { const tier = hit < 4 ? 0 : hit < 9 ? 1 : 2, p = _v.set(P.x + nx * side * 1.1, P.y + .8, P.z + nz * side * 1.1).clone(); if (tier) kick(tier * .6); if (tier === 2) { pow(p, 1.8); G.slow = T + .15; }
@@ -1350,7 +1373,7 @@ function vr(dt) {
   VIS.v += ((VIS.down ? 0 : -1.45) - VIS.a) * 160 * dt - VIS.v * 11 * dt; VIS.a += VIS.v * dt; VIS.g.rotation.x = VIS.a;
   if (G.phase === 'finish' && G.place) { let ch = false; for (const r of RIV) if ((!r.done || r.done > G.place) && !VIS.beat.has(r.name)) { VIS.beat.add(r.name); ch = true; } if (ch) paintList(); }
   // the bobblehead
-  const bh = BOB.g.localToWorld(_v4.set(0, .075, 0)); rig.worldToLocal(bh); PH.forEach((h, i) => { if (h.ok && tapped(HV[i], 'bob', bh, .045, h)) { const v = HV[i].v; BOB.vz -= clamp(v.x, -2, 2) * 22 + rand(-3, 3); BOB.vx += clamp(v.z, -2, 2) * 22 + rand(-3, 3); if (T > BOB.cd) { BOB.cd = T + .3; sfx('squeak', .6); } } });
+  const bh = BOB.g.localToWorld(_v4.set(0, .075, 0)); rig.worldToLocal(bh); PH.forEach((h, i) => { if (h.ok && tapped(HV[i], 'bob', bh, .045, h)) { const v = HV[i].v; BOB.vz -= clamp(v.x, -2, 2) * 22 + rand(-3, 3); BOB.vx += clamp(v.z, -2, 2) * 22 + rand(-3, 3); if (T > BOB.cd) { BOB.cd = T + .3; sfxAt('squeak', BOB.h.getWorldPosition(new V()), .6); } } });
   const jb = P.vf * .02 + P.shake * 3; BOB.vz += (-90 * BOB.bz - 2.6 * BOB.vz + P.ay * .9 + rand(-1, 1) * jb) * dt; BOB.vx += (-90 * BOB.bx - 2.6 * BOB.vx - P.ax * .9 + rand(-1, 1) * jb) * dt;
   BOB.bz = clamp(BOB.bz + BOB.vz * dt, -.8, .8); BOB.bx = clamp(BOB.bx + BOB.vx * dt, -.8, .8); BOB.h.rotation.set(BOB.bx, 0, BOB.bz);
   // the indicator
@@ -1368,7 +1391,7 @@ function vr(dt) {
 }
 const SH0 = new V(SHD.x, SHD.y, SHD.z), dashY = z => -.196 - Math.max(0, -.63 - z) * .1;
 function duckCab(dt) { const p = DUCK.g.position, v = DUCK.v, fl = -rig.position.y + .02; if (DUCK.st === 'rest') return; v.y -= 9.8 * dt; const py = p.y; p.addScaledVector(v, dt);
-  const bump = (n, k = .45) => { const vn = v.dot(n); if (vn < 0) { v.addScaledVector(n, -(1 + k) * vn); v.multiplyScalar(.85); DUCK.w.multiplyScalar(.6); if (-vn > 1.2 && T > DUCK.cd) { DUCK.cd = T + .15; sfx('squeak', clamp(-vn * .15, .2, .7)); } } };
+  const bump = (n, k = .45) => { const vn = v.dot(n); if (vn < 0) { v.addScaledVector(n, -(1 + k) * vn); v.multiplyScalar(.85); DUCK.w.multiplyScalar(.6); if (-vn > 1.2 && T > DUCK.cd) { DUCK.cd = T + .15; sfxAt('squeak', DUCK.g.getWorldPosition(new V()), clamp(-vn * .15, .2, .7)); } } };
   const ds = _v.subVectors(p, SH0).dot(SN); if (ds < .03 && p.x > SHD.x && p.x < SHD.x + SHD.w && p.y > SHD.y - .02) { p.addScaledVector(SN, .03 - ds); bump(SN); } // the windscreen
   if (p.y > .33) { p.y = .33; bump(_v.set(0, -1, 0)); }
   if (p.z < -.57 && p.z > -1 && p.x > -.345 && p.x < 1.065) { const dy = dashY(p.z); if (p.y < dy && py >= dy - .01) { p.y = dy; bump(_v.set(0, 1, 0), .35); if (Math.abs(v.y) < .25 && v.length() < .4) { DUCK.st = 'rest'; DUCK.g.rotation.set(0, DUCK.g.rotation.y, 0); return; } } else if (p.y < dy && p.y > -.42 && p.z > -.62) { p.z = -.56; bump(_v.set(0, 0, 1)); } }
@@ -1377,7 +1400,7 @@ function duckCab(dt) { const p = DUCK.g.position, v = DUCK.v, fl = -rig.position
 function duckOut() { world.attach(DUCK.g); rig.getWorldQuaternion(_q); world.getWorldQuaternion(_q2); DUCK.v.applyQuaternion(_q).applyQuaternion(_q2.invert()).add(_v.set(P.vx, 0, P.vz)); DUCK.st = 'world'; duckSten(true); sfx('whoosh', .4); }
 function duckWorld(dt) { const p = DUCK.g.position, v = DUCK.v; v.y -= 9.8 * dt; p.addScaledVector(v, dt); const n = nearest(p.x, p.z), gy = (n.d < W + 3.5 ? SY[n.i] : hill2(p.x, p.z)) + .02;
   if (p.y < gy) { p.y = gy; if (v.y < -1.5 && T > DUCK.cd) { DUCK.cd = T + .2; sfx('squeak', .4); } v.y = Math.abs(v.y) * .35; v.x *= .7; v.z *= .7; DUCK.w.multiplyScalar(.5); if (v.y < .5) v.y = 0; }
-  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, sp = c === P ? P.vf : c.v; if (sp > 3 && Math.hypot(o.x - p.x, o.z - p.z) < 1.5 && p.y - (o.y || gy) < 1.4 && T > DUCK.cd) { const ps = c === P ? P.psi : o.psi; DUCK.cd = T + .5; v.set(Math.sin(ps) * sp * 1.15 + rand(-2, 2), 4 + sp * .2, -Math.cos(ps) * sp * 1.15 + rand(-2, 2)); DUCK.w.set(rand(-20, 20), rand(-20, 20), rand(-20, 20)); sfx('squeak'); pow(_v.copy(p).add(_v2.set(0, 1.2, 0)), 1.3, QUACK); chips(p, '#ffd23f', 10, 2); } } // QUACK
+  for (const c of [P, ...RIV]) { const o = c === P ? P : c.o, sp = c === P ? P.vf : c.v; if (sp > 3 && Math.hypot(o.x - p.x, o.z - p.z) < 1.5 && p.y - (o.y || gy) < 1.4 && T > DUCK.cd) { const ps = c === P ? P.psi : o.psi; DUCK.cd = T + .5; v.set(Math.sin(ps) * sp * 1.15 + rand(-2, 2), 4 + sp * .2, -Math.cos(ps) * sp * 1.15 + rand(-2, 2)); DUCK.w.set(rand(-20, 20), rand(-20, 20), rand(-20, 20)); sfxAt('squeak', DUCK.g.getWorldPosition(new V())); pow(_v.copy(p).add(_v2.set(0, 1.2, 0)), 1.3, QUACK); chips(p, '#ffd23f', 10, 2); } } // QUACK
   if (p.y < -60) duckHome(); }
 
 // ── power windows, two buttons on your door: tap and the glass runs all the way, hold and it creeps. Glass up is your own room; glass down is the other world
@@ -1463,11 +1486,42 @@ function strike(st) { const far = st < .6 || Math.random() < .35, dist = far ? r
   for (let i = 0; i < 26; i++) { p = p.clone().add(new V(0, -(top - gy) / 26, 0)).addScaledVector(side, rand(-7, 7) * (1 - i / 34)); pts[0].push(p); if (pts.length < 4 && i > 3 && i < 18 && Math.random() < .2) { let q = p.clone(); const br = [q], dir = Math.random() < .5 ? -1 : 1; for (let j = 0; j < 8; j++) { q = q.clone().add(new V(0, -rand(3, 6), 0)).addScaledVector(side, dir * rand(2, 8)); br.push(q); } pts.push(br); } }
   BOLT.forEach(m => { const a2 = m.geometry.attributes.position; let n = 0; pts.forEach((line, li) => { const w = m.w * (li ? .55 : 1); for (let i = 0; i < line.length - 1 && n < BOLTMAX; i++, n++) { const A0 = line[i], B0 = line[i + 1], s0 = w * (1 - i / line.length * .5) / 2, s1 = w * (1 - (i + 1) / line.length * .5) / 2;
       [[A0, -s0], [A0, s0], [B0, s1], [A0, -s0], [B0, s1], [B0, -s1]].forEach(([q, o], j) => a2.setXYZ(n * 6 + j, q.x + side.x * o, q.y, q.z + side.z * o)); } }); a2.needsUpdate = true; m.geometry.setDrawRange(0, n * 6); });
-  STRK.t = 0; STRK.k = far ? .45 : 1; STRK.far = far; if (A.ctx) { const d = dist / 340 * .55; noise(A.sfx, far ? 3 : 4, (far ? .25 : .5) * st, 'lowpass', far ? 130 : 220, d, 45, .7); noise(A.sfx, 2.2, (far ? .12 : .3) * st, 'lowpass', 500, d + .15, 80); if (!far) noise(A.sfx, .5, .35 * st, 'highpass', 1500, d * .3); } } // thunder: a crack if it was close, then the long roll
+  STRK.t = 0; STRK.k = far ? .45 : 1; STRK.far = far; if (A.ctx) { const d = dist / 340 * .55, o = spat(world.localToWorld(new V(x, gy + 60, z)), true); noise(o, far ? 3 : 4, (far ? .25 : .5) * st, 'lowpass', far ? 130 : 220, d, 45, .7); noise(o, 2.2, (far ? .12 : .3) * st, 'lowpass', 500, d + .15, 80); if (!far) noise(o, .5, .35 * st, 'highpass', 1500, d * .3); } } // thunder: a crack if it was close, then the long roll
 function storm(dt) { const st = WX.storm || 0; if (st > .05 && T > STRK.next && ['race', 'finish'].includes(G.phase)) { STRK.next = T + rand(2.5, 8) / (.35 + st); strike(st); }
   STRK.t += dt; const t = STRK.t, F = (Math.max(0, 1 - t / .08) + (t > .14 && t < .22 ? .85 : 0) + (t > .22 ? .55 * Math.exp(-(t - .22) * 7) : 0)) * STRK.k; // flash, gap, flash, fade
   BOLT.forEach(m => { m.material.opacity = t < .45 && !STRK.far || t < .3 ? Math.min(1, F * 1.6) * m.op : 0; m.visible = m.material.opacity > .01; });
   if (F > .005) { FLC.setRGB(.55, .58, .95).multiplyScalar(F); for (const k of ['uSunC', 'uShC', 'uZen', 'uHor', 'uCl', 'uCs']) UW[k].value.add(FLC); UW.uFogC.value.add(FLC.multiplyScalar(.6)); hemiL.intensity += F * 1.3; sunL.intensity += F * .6; } }
+
+// ═══════════════════════════ SOUND IN SPACE: one-shots come from where they happen. Thunder from the strike, a crash from the contact, the horn from the nose, the duck from the duck ═══════════════════════════
+const SPOOL = []; let spk = 0;
+function spat(p, dirOnly) { let pn = SPOOL[spk]; if (!pn) { pn = SPOOL[spk] = A.ctx.createPanner(); pn.panningModel = 'HRTF'; pn.distanceModel = 'inverse'; pn.refDistance = 1.2; pn.rolloffFactor = .8; pn.connect(A.sfx); } spk = (spk + 1) % 8;
+  if (dirOnly) { camera.getWorldPosition(_v3); p = _v3.clone().add(_v2.subVectors(p, _v3).normalize().multiplyScalar(2.5)); } setPan(pn, p); return pn; } // far things: only their direction counts, not their distance
+function sfxAt(type, p, vol = 1) { if (!A.ctx) return; A.tmp = spat(p); sfx(type, vol); A.tmp = null; }
+
+// ═══════════════════════════ PERFORMANCE: a frame budget we can see (?perf), and quality that steps down by itself before the Quest drops frames ═══════════════════════════
+const PERF = { on: /[?&]perf/.test(location.search), q: 0, ms: 13, slow: 0, good: 0, t: 0, calls: 0, tris: 0, base: MIRR.map(m => m.every) }, PC = ctex(256, 72);
+const perfTag = mesh(new THREE.PlaneGeometry(.12, .034), lit({ map: PC.tex, transparent: true }), cab); perfTag.position.set(-.2, .06, -.62); look(perfTag); perfTag.visible = PERF.on;
+function quality(q) { PERF.q = q; MIRR.forEach((m, i) => { m.every = PERF.base[i] * (q >= 1 ? 2 : 1); }); SKYL[1].visible = q < 2; CLOUDS.children[1].visible = q < 2; CLOUDS.children.forEach(m => { m.count = q >= 3 ? m.instanceMatrix.count >> 1 : m.instanceMatrix.count; }); RTR.forEach(t => { t.rb.m.material.uniforms.uA.value *= q >= 3 ? 0 : 1; }); }
+function perf(dt) { const I = renderer.info.render; PERF.calls = I.calls; PERF.tris = I.triangles; renderer.info.reset(); // last frame's totals, mirrors included
+  PERF.ms += (dt * 1000 - PERF.ms) * .05; const budget = renderer.xr.isPresenting ? 14.5 : 18; // Quest 3 at 72 Hz has 13.9 ms
+  if (PERF.ms > budget) { PERF.slow += dt; PERF.good = 0; } else { PERF.slow = 0; PERF.good += dt; }
+  if (PERF.slow > 2 && PERF.q < 3) { quality(PERF.q + 1); PERF.slow = 0; console.log('[perf] quality down →', PERF.q); } if (PERF.good > 20 && PERF.q > 0) { quality(PERF.q - 1); PERF.good = 0; }
+  if (PERF.on && T > PERF.t) { PERF.t = T + .5; const c = PC.ctx; c.clearRect(0, 0, 256, 72); c.fillStyle = 'rgba(10,6,24,.82)'; c.beginPath(); c.roundRect(0, 0, 256, 72, 10); c.fill(); c.font = '600 21px "Chakra Petch",monospace'; c.fillStyle = PERF.ms > budget ? '#ff5f7a' : '#7dff9a';
+    c.fillText(`${(1000 / PERF.ms).toFixed(0)} fps · ${PERF.ms.toFixed(1)} ms · Q${PERF.q}`, 10, 28); c.fillStyle = '#cfd3dc'; c.fillText(`${PERF.calls} calls · ${(PERF.tris / 1000).toFixed(0)}k tris`, 10, 56); PC.tex.needsUpdate = true; } }
+
+// ═══════════════════════════ THE GHOST: your last lap, driven again beside you — see-through pink, with a hero streak, and split times against it ═══════════════════════════
+const GH = { rec: [], last: (() => { try { return JSON.parse(localStorage.getItem('sd.ghost')) || []; } catch (e) { return []; } })(), acc: 0, lap: 0, q: 0, g: new THREE.Group() };
+{ const m = new THREE.Mesh(carGeo('#ff2d8a'), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, ...STEN,
+    vertexShader: `varying vec3 vN,vV;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader: `uniform float uTime;varying vec3 vN,vV;void main(){float f=pow(1.-abs(dot(normalize(vN),vV)),1.4);gl_FragColor=vec4(vec3(1.,.32,.74)*(.16+.9*f)*(.9+.1*sin(uTime*14.)),1.);}`, uniforms: { uTime: UW.uTime } }));
+  m.renderOrder = RO.fx; GH.g.add(m); GH.g.rotation.order = 'YXZ'; GH.g.visible = false; world.add(GH.g); GH.rb = new Ribbon(30, '#ff4fa3', world, .9); GH.rb.m.material.uniforms.uA.value = .55; }
+const ghostAt = t => { const L = GH.last; let lo = 0, hi = L.length - 1; if (hi < 1 || t > L[hi][0]) return null; while (hi - lo > 1) { const m = (lo + hi) >> 1; L[m][0] < t ? lo = m : hi = m; } const a = L[lo], b = L[hi], k = clamp((t - a[0]) / Math.max(b[0] - a[0], 1e-4), 0, 1); return [lerp(a[1], b[1], k), lerp(a[2], b[2], k), lerp(a[3], b[3], k), a[4] + wrapPi(b[4] - a[4]) * k]; };
+function ghost(dt) { const racing = G.phase === 'race';
+  if (racing) { if (G.lap !== GH.lap) { if (GH.lap && GH.rec.length > 20) { GH.last = GH.rec; try { localStorage.setItem('sd.ghost', JSON.stringify(GH.last.map(r => r.map(v => +v.toFixed(2))))); } catch (e) { } } GH.rec = []; GH.lap = G.lap; GH.q = 0; GH.rb.pts.length = 0; } // a finished lap becomes the ghost
+    GH.acc += dt; if (GH.acc > .1) { GH.acc = 0; GH.rec.push([P.lapT, P.x, P.y, P.z, P.psi, ((P.prog % TL) + TL) % TL]); } } else if (G.phase !== 'finish') GH.lap = 0;
+  const s = racing && GH.last.length ? ghostAt(P.lapT) : null; GH.g.visible = GH.rb.m.visible = !!s; if (!s) return;
+  GH.g.position.set(s[0], s[1], s[2]); GH.g.rotation.set(0, -s[3], 0); GH.rb.push(GH.g.position, .4); GH.rb.build(YA, .7);
+  const lp = ((P.prog % TL) + TL) % TL, qn = Math.floor(lp / TL * 4); if (qn > GH.q && qn < 4) { GH.q = qn; const g = GH.last.find(r => r[5] >= lp); if (g) { const d = P.lapT - g[0]; say(`GHOST ${d < 0 ? '−' : '+'}${Math.abs(d).toFixed(1)}s`, 1.4); sfx(d < 0 ? 'coin' : 'tick', .5); } } } // splits: green coin if you are ahead
 
 // ═══════════════════════════ LOOP ═══════════════════════════
 const mouse = new THREE.Vector2();
@@ -1480,7 +1534,7 @@ function loop() {
     else { camera.position.copy(rig.position); camera.rotation.set(-.1 + mouse.y * .5, rig.rotation.y - mouse.x * 1.1, 0, 'YXZ'); }
     if (DBG.cam) DBG.cam(camera); camera.updateMatrixWorld(); }
   const sdt = T < G.slow ? dt * .3 : dt; // crossing the line: the world slows for a breath
-  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); storm(sdt); mirrors();
+  updHands(dt); flow(sdt); updWipers(sdt); setWorld(sdt); weather(sdt); parts.update(sdt); updRain(sdt, P.vf); prizes(dt, sdt); ppg(dt, sdt); world2(sdt); startFx(dt); screens(); updAudio(dt); vr(sdt); night(sdt); dome(sdt); storm(sdt); ghost(sdt); perf(dt); mirrors();
   renderer.render(scene, camera);
 }
 
@@ -1501,7 +1555,7 @@ if (SIM) { addEventListener('mousemove', e => mouse.set(e.clientX / innerWidth *
 function go(to) { // test hook: jump straight to a moment
   if (G.phase === 'poster') begin(false); G.clipZ = 99; G.engine = 1; openGlass(true); RADIO.on = true; if (to === 'ready') { openGlass(false); return setPhase('ready'); } if (to === 'crank') { openGlass(false); return setPhase('crank'); }
   if (to === 'count') return setPhase('count'); setPhase('race'); IN.auto = false; G.t = 3; if (to === 'rain') { P.prog += TL * 1.2; RIV.forEach(r => r.prog += TL * 1.2); } if (to === 'dusk') { P.prog += TL * 2.1; RIV.forEach(r => r.prog += TL * 2.1); } if (to === 'night') { G.level = 2; WX.t = [0, 0, 0, 1]; WX.w = [0, 0, 0, 1]; } }
-window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, heartShow, trackAt, carHit, wallHit, MIRR, strike, STRK, DUCK, VIS, BOB, STK, MADJ, duckOut, HV, rig, camera, scene, renderer, THREE, A, TL };
+window.__SD = { RADIO, KEYS, CDS, PL, startReset, SAVE, ITEMS, SHOP, SMIR, buy, install, mirrorBreak, rivMirror, burst, G, P, IN, WX, UG, WS, WH, HB, PH, RIV, DBG, CFG, KEY, PEND, go, loop, begin, end, heartShow, trackAt, carHit, wallHit, MIRR, strike, STRK, GH, PERF, quality, swatch, THEMES, SHOP_ITEMS: ITEMS, DUCK, VIS, BOB, STK, MADJ, duckOut, HV, rig, camera, scene, renderer, THREE, A, TL };
 
 // ═══════════════════════════ BOOT ═══════════════════════════
 (async () => {
