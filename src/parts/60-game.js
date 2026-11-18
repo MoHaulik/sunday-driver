@@ -17,10 +17,13 @@ function updHands(dt) {
       if (HANDSRC[h.hd]) { const oc = h.occ[h.hd] || (h.occ[h.hd] = handInst(h.hd)); oc.root.visible = true; for (let k = 0; k < 25; k++) { const j = J[JN[k]]; if (j) { oc.bones[k].position.copy(j.position); oc.bones[k].quaternion.copy(j.quaternion); } } } }
     else if (xr && h.src && h.grip.visible) { ok = true; rig.worldToLocal(h.p.copy(h.grip.position)); h.tips.forEach(t => rig.worldToLocal(t.copy(h.ctrl.position))); if (h.sel) press = true; } // controllers work too: hold them like the rim, trigger = the button
     h.sel = false; h.ok = ok; if (!ok) { h.on = h.hb = false; continue; }
-    // the wheel: where is this hand round the rim, and how far from it
-    const rel = _v.subVectors(h.p, WH.c), ax = rel.dot(WH.a), ru = rel.dot(WH.u), rv = rel.dot(WH.v), rr = Math.hypot(ru, rv), near = Math.abs(ax) < .15 && rr < WC.R + .14 && rr > .05; h.phi = Math.atan2(rv, ru); // generous: a hand anywhere on or near the wheel is holding it
-    if (!h.on && !h.hb && near) { h.on = true; h.g = h.phi - WH.rot; if (T > (h.gT || 0)) sfx('grab'); IN.everHeld = true; } if (h.on) h.gT = T + 1.5; else if (h.on && (Math.abs(ax) > .24 || rr > WC.R + .24)) h.on = false;
-    if (h.on) { sum += WH.rot + wrapPi(h.phi - h.g - WH.rot); n++; }
+    // the wheel, the way VR sims do it: each hand that grips the rim steers by how far it has turned AROUND THE AXIS since it took hold. Re-grips never jump; one hand, two hands, hand-over-hand or palming from underneath all work.
+    // A grip needs your palm or a fingertip on the rim itself (from any side), and it only lets go after 120 ms clear of it, so tracking flicker never drops the wheel
+    const rel = _v.subVectors(h.p, WH.c), ax = rel.dot(WH.a), ru = rel.dot(WH.u), rv = rel.dot(WH.v), rr = Math.hypot(ru, rv), phi = Math.atan2(rv, ru); h.phi = phi;
+    let dr = Math.hypot(rr - WC.R, ax); for (const t of h.tips) { const q = _v2.subVectors(t, WH.c), qa = q.dot(WH.a), qr = Math.hypot(q.dot(WH.u), q.dot(WH.v)); dr = Math.min(dr, Math.hypot(qr - WC.R, qa) + .015); }
+    if (!h.on && !h.hb && dr < WC.grab && rr > .09) { h.on = true; h.lp = phi; h.acc = 0; h.r0 = WH.rot; h.off = 0; if (T > (h.gT || 0)) sfx('grab'); IN.everHeld = true; }
+    else if (h.on) { h.acc += wrapPi(phi - h.lp); h.lp = phi; h.off = dr > WC.drop ? h.off + dt : 0; if (h.off > .12) h.on = false; else h.gT = T + 1.5; }
+    if (h.on) { const w = s01((rr - .05) / .07); sum += (h.r0 + h.acc) * w; n += w; } // a hand near the hub has no angle to speak of, so it counts for less
     // the handbrake: take the lever and lift
     const dh = h.p.distanceTo(HB.p); if (!h.on && !h.hb && dh < CFG.HB.grab && HB.hold < 0) { h.hb = true; HB.hold = h.i; sfx('grab'); } else if (h.hb && dh > CFG.HB.drop) { h.hb = false; HB.hold = -1; }
     if (h.hb) hbHand = h;
@@ -29,7 +32,9 @@ function updHands(dt) {
   if (HB.hold >= 0 && !PH[HB.hold].hb) HB.hold = -1;
   if (SIM && !DBG.hand) { // keys: arrows or WASD to steer, space = handbrake, enter = the start button, H = horn
     const l = KEY.arrowleft || KEY.a, r = KEY.arrowright || KEY.d, t = (r ? -1 : 0) + (l ? 1 : 0); WH.rot += (t * WC.full - WH.rot) * damp(dt, t ? .22 : .12); n = KEY.arrowdown || KEY.s ? 0 : 1; sum = WH.rot; HB.pull += ((KEY[' '] ? 1 : 0) - HB.pull) * damp(dt, .06); press = !!KEY.enter; IN.honk = !!KEY.h; tune = !!KEY.r; KEY.enter = false; if (l || r) IN.everHeld = true; }
-  else { if (n) { const tgt = sum / n; WH.rot += (clamp(tgt, -WC.lock, WC.lock) - WH.rot) * damp(dt, .035); if (Math.abs(tgt) > WC.lock) for (const h of PH) if (h.on) h.g = h.phi - WH.rot; } else WH.rot += -WH.rot * damp(dt, .16); // let go and it centres itself
+  else { if (n > .01) { const tgt = sum / n, c = clamp(tgt, -WC.lock, WC.lock); if (tgt !== c) { for (const h of PH) if (h.on) h.r0 -= tgt - c; if (T > (WH.stopT || 0)) { WH.stopT = T + .45; sfx('detent', .7); } } // at the lock the wheel stops and your hands slip on the rim
+      const r0 = WH.rot; WH.rot += (c - WH.rot) * damp(dt, .015); WH.vel = (WH.rot - r0) / Math.max(dt, .008); }
+    else { const k = 34 + P.vf * .9, dmp = 2 * Math.sqrt(k) * .55; WH.vel = (WH.vel || 0) + (-k * WH.rot - dmp * WH.vel) * dt; WH.rot = clamp(WH.rot + WH.vel * dt, -WC.lock, WC.lock); } // let go: the caster swings it home with a touch of overshoot, quicker the faster you go
     let pull = 0; if (hbHand) { const r = _v.subVectors(hbHand.p, hbG.position); pull = clamp((Math.atan2(r.y, -r.z) - .12) / .55, 0, 1); } const p0 = HB.pull; HB.pull += (pull - HB.pull) * damp(dt, hbHand ? .03 : .08); if ((p0 * 5 | 0) !== (HB.pull * 5 | 0) && hbHand) sfx('ratchet'); }
   wheelS.rotation.z = WH.rot; hbG.rotation.x = .12 + HB.pull * .62; HB.p.set(0, 0, -.185).applyAxisAngle(XA, hbG.rotation.x).add(hbG.position);
   IN.hands = n; IN.pressT = press ? (IN.pressT || 0) + dt : 0; const pr = SIM ? press : IN.pressT > .08; IN.press = pr && !IN.pressHeld; IN.pressHeld = pr;

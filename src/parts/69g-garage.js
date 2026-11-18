@@ -135,3 +135,8 @@ function garage(dt) { const want = GA.want && G.phase === 'finish'; // windows f
   if (T > GA.amb) { GA.amb = T + rand(5, 11); sfxAt(pick(['clank', 'ratchet', 'hiss']), GG.localToWorld(_v.set(rand(-3, 4), 0, rand(-5, 4))), .25); } } // the shop is never quiet
 const BLK = new THREE.Mesh(new THREE.SphereGeometry(40, 16, 10), new THREE.MeshBasicMaterial({ color: '#05030c', side: THREE.BackSide, transparent: true, opacity: 0, depthTest: false, depthWrite: false, ...STEN })); BLK.renderOrder = RO.fx + 3; BLK.visible = false; rig.add(BLK);
 function sparks(dt) { CSP.update(dt, 4); GSP.update(dt, 6); garage(dt); }
+
+// ── the key moment: until the key is in, the cabin sinks into shadow and a warm spot picks out the key, so your eye goes straight to it
+const KSPOT = new THREE.PointLight('#ffe1a8', 0, .5, 1.5); cab.add(KSPOT); const KHALO = new THREE.Sprite(new THREE.SpriteMaterial({ map: DOT, color: '#ffd27a', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); KHALO.scale.setScalar(.12); cab.add(KHALO);
+function keyDim(dt) { const want = ['ready', 'boot', 'place'].includes(G.phase) && KEYS.state !== 'in' && !KEYS.auto ? 1 : 0; KEYS.dim = (KEYS.dim || 0) + (want - (KEYS.dim || 0)) * damp(dt, want ? .25 : .12); const d = KEYS.dim;
+  hemiL.intensity *= 1 - d * .78; sunL.intensity *= 1 - d * .85; KSPOT.position.copy(KG.position).add(_v.set(0, .08, .05)); KSPOT.intensity = d * 1.6; KHALO.position.copy(KG.position); KHALO.material.opacity = d * (.45 + .2 * Math.sin(T * 3)); }

@@ -16,11 +16,11 @@ const KN = new V(0, Math.sin(.38), Math.cos(.38)), KQ0 = new Qn().setFromUnitVec
   mesh([at(cyl(.015, .015, .007, 24), 0, 0, .012), at(box(.012, .007, .008), 0, 0, .002)], pink, g); mesh(at(cyl(.008, .008, .0074, 20), 0, 0, .012), lit({ color: '#ffd6ea' }), g); mesh(at(tor(.006, .0013, 12, 6), 0, 0, .029, Math.PI / 2), M.alu, g);
   const t = ctx2(64, 64, c => { c.fillStyle = '#ff4fa3'; c.fillRect(0, 0, 64, 64); c.fillStyle = '#fff'; c.font = 'italic 800 30px Unbounded,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('♥', 32, 34); });
   mesh(new THREE.CircleGeometry(.0075, 20).rotateX(-Math.PI / 2).translate(0, .0038, .012), lit({ map: t.tex }), g);
-  KEYS.ring = grp(g, 0, 0, .031); KEYS.ring.add(FOB); FOB.position.set(0, -.004, 0); KEYS.home = new V(.3, -.11, -.4); }
+  KEYS.ring = grp(g, 0, 0, .031); KEYS.ring.add(FOB); FOB.position.set(0, -.004, 0); KEYS.home = new V(.2, -.05, -.27); /* close to you, at chest height, where your hand already is */ }
 const KG = KEYS.g, keyTip = () => _v3.set(0, 0, -.032).applyQuaternion(KG.quaternion).add(KG.position);
 function keyInPose(a) { KG.position.copy(IGN).addScaledVector(KN, .004); KG.quaternion.copy(KQ0).multiply(_q.setFromAxisAngle(ZA, -a)); }
 function keyReset() { KEYS.state = 'float'; KEYS.ang = KEYS.maxA = 0; KEYS.auto = 0; KEYS.hand = null; KG.position.copy(KEYS.home); setPower(.04); }
-function updKey(dt) { const ph = G.phase;
+function updKey(dt) { const ph = G.phase; KG.scale.setScalar(KEYS.state === 'float' ? 1.5 : 1);
   if (ph !== 'ready' && ph !== 'boot' && ph !== 'place') { if (KEYS.state !== 'in') { KEYS.state = 'in'; } keyInPose(KEYS.ang += (.75 * (ph === 'crank' && G.t < 1.1 ? 1.5 : 1) - KEYS.ang) * damp(dt, .08)); }
   else if (KEYS.auto) { const t = T - KEYS.auto; if (KEYS.state !== 'in') { KG.position.lerp(_v.copy(IGN).addScaledVector(KN, .004), 1 - Math.exp(-dt * 10)); KG.quaternion.slerp(KQ0, 1 - Math.exp(-dt * 10)); if (t > .45) { KEYS.state = 'in'; sfx('keyin'); KEYS.at = T; } } else keyTurn(clamp((T - KEYS.at - .3) / .7, 0, 1) * 1.1); }
   else if (KEYS.state === 'float') { KG.position.set(KEYS.home.x, KEYS.home.y + Math.sin(T * 2) * .008, KEYS.home.z); KG.quaternion.setFromEuler(_e.set(-.5, T * 1.2, .25)); if (T % 1.2 < dt) burst(KG.position.clone(), 2, .4);
@@ -80,7 +80,7 @@ function drawLED() { const c = LED.ctx; c.fillStyle = '#04101a'; c.fillRect(0, 0
 
 function cdOpen() { CDS.state = 'in'; CDS.t = 0; CDS.g.visible = true; CDS.sel = 2; CDS.vel = 0; CDS.items.forEach(it => { it.gone = 0; it.o.visible = true; it.o.parent !== CDS.g && CDS.g.attach(it.o); }); sfx('whirr'); say('PICK A CD', 2.5); }
 function cdLayout(it, dt, k) { const o = it.k - CDS.sel, ao = Math.abs(o), s = Math.sign(o), m = Math.min(ao, 1); // Cover Flow: the one in front faces you, the rest stand on edge, stacked tight
-  _v.set(s * (m * .085 + Math.max(ao - 1, 0) * .03), Math.sin(T * 1.6 + it.k) * .004, -m * .055 - Math.max(ao - 1, 0) * .01); _q.setFromEuler(_e.set(Math.sin(T * .9 + it.k) * .05, -s * m * 1.2, 0));
+  _v.set(s * (m * .11 + Math.max(ao - 1, 0) * .052), Math.sin(T * 1.6 + it.k) * .004, -m * .05 - Math.max(ao - 1, 0) * .014); _q.setFromEuler(_e.set(Math.sin(T * .9 + it.k) * .05, -s * m * 1.2, 0));
   const intro = clamp((CDS.t - it.k * .07) / .5, 0, 1); if (intro < 1) { _v.y -= (1 - intro) ** 2 * .35; _q.multiply(_q2.setFromAxisAngle(XA, (1 - intro) * 4)); }
   it.o.position.lerp(_v, 1 - Math.exp(-dt * k)); it.o.quaternion.slerp(_q, 1 - Math.exp(-dt * k)); it.o.scale.setScalar(Math.max(.001, (1 - m * .12) * clamp(1.2 - ao * .25, 0, 1) * (1 - it.gone))); }
 const _e = new THREE.Euler();
@@ -90,7 +90,7 @@ function updCD(dt) { CDS.t += dt; drawLEDmaybe(); if (CDS.state === 'off') retur
     if (CDS.state === 'browse') for (const h of PH) { if (!h.ok) continue; const lp = CDS.g.worldToLocal(cab.localToWorld(_v2.copy(h.pp)));
       if (!CDS.held && h.pinchDown) { let best = null, bd = .065; for (const it of CDS.items) { const d = it.o.position.distanceTo(lp); if (d < bd) { bd = d; best = it; } } if (best) { CDS.held = best; CDS.hand = h; sfx('grab'); continue; } }
       if (CDS.held || h.pinch) continue; const tp = CDS.g.worldToLocal(cab.localToWorld(rigToCab(_v3.copy(h.tips[1]))));
-      if (Math.abs(tp.y) < .09 && Math.abs(tp.z) < .08 && Math.abs(tp.x) < .28) { if (h.lx !== undefined && CDS.drag === h) { const dx = tp.x - h.lx; CDS.sel -= dx / .07; CDS.vel = lerp(CDS.vel, -dx / .07 / Math.max(dt, .008), .4); dragging = true; } CDS.drag = h; h.lx = tp.x; } else if (CDS.drag === h) CDS.drag = null; }
+      if (Math.abs(tp.y) < .09 && Math.abs(tp.z) < .08 && Math.abs(tp.x) < .28) { if (h.lx !== undefined && CDS.drag === h) { const dx = tp.x - h.lx; CDS.sel -= dx / .085; CDS.vel = lerp(CDS.vel, -dx / .085 / Math.max(dt, .008), .4); dragging = true; } CDS.drag = h; h.lx = tp.x; } else if (CDS.drag === h) CDS.drag = null; }
     if (SIM) { if (KEY.arrowleft || KEY.a) { KEY.arrowleft = KEY.a = false; CDS.vel = -9; } if (KEY.arrowright || KEY.d) { KEY.arrowright = KEY.d = false; CDS.vel = 9; } }
     if (!dragging) { CDS.sel += CDS.vel * dt; CDS.vel *= Math.exp(-dt * 3.2); if (Math.abs(CDS.vel) < 2.5) { CDS.vel += (Math.round(CDS.sel) - CDS.sel) * 60 * dt; CDS.vel *= Math.exp(-dt * 5); } } // flick and it glides; slow down and it settles on a disc
     CDS.sel = clamp(CDS.sel, -.45, n - .55); const s1 = Math.round(CDS.sel); if (s1 !== s0) { sfx('tick', 1 + s1 * .05); ledMsg = '♪ ' + STATIONS[clamp(s1, 0, n - 1)].name; }

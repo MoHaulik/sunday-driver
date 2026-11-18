@@ -19,7 +19,7 @@ let seed = 11; const rnd = (a = 0, b = 1) => { seed = seed * 16807 % 2147483647;
 const CFG = {
   W: 5.5, EYE: 1.14, CX: .36, LAPS: 3,                     // half road width; eye height over the road; the car's centre line is this far to your right (left-hand drive)
   VMAX: 46, ACC: 11, GRIP: 22, ASSIST: .7,                 // m/s, m/s², lateral m/s² of grip; how much the car brakes itself into corners (0 = you are on your own)
-  WHEEL: { y: -.30, z: -.42, tilt: .38, R: .185, full: 1.5, lock: 2.05, grab: .085, drop: .16 }, // full: wheel angle (rad) for full steering
+  WHEEL: { y: -.30, z: -.42, tilt: .38, R: .185, full: 1.5, lock: 2.4, grab: .065, drop: .12 }, // full: wheel angle (rad) for full steering
   HB: { x: .455, y: -.5, z: .03, len: .22, grab: .09, drop: .2 }, START: { x: -.252, y: -.266, z: -.556 },
   SHIELD: { x: -.33, y: -.215, z: -.98, w: 1.38, top: .06, vy: .545, vz: .56 }, // windscreen: bottom-left corner, bottom width, how far the top corners come in, and the rise/run of the rake
   WIPER: { p: [[.10, -.02], [.76, -.02]], r0: .13, r1: .57, a0: .07, a1: 1.62, stroke: .52 },
