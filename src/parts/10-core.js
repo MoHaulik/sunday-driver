@@ -88,7 +88,7 @@ const UW = { uSun: u(new V(0, 1, 0)), uSunT: u(new V(0, 1, 0)), uSunC: u(col('#f
   uFog: u(.0016), uNight: u(0), uStorm: u(0), uHL: u([...Array(7)].map(() => new THREE.Vector4())), uHD: u([...Array(7)].map(() => new THREE.Vector4())), uLP: u([...Array(8)].map(() => new THREE.Vector4())), uLC: u([...Array(8)].map(() => new V())), uCov: u(.5), uSunI: u(1), uWet: u(0), uTime: u(0), uEye: u(new V()) };
 //           day        rain       golden hour
 const LOOK = { uSunC: ['#fffdf6', '#c6bcdc', '#ffb884', '#28336e'], uShC: ['#b891ea', '#8f84b8', '#a264cc', '#0a0922'], uZen: ['#3fc4f7', '#7a6cab', '#7446d2', '#04031a'], uHor: ['#ffd3ec', '#cbbbe0', '#ff9cc6', '#1e1450'], uCl: ['#ffffff', '#e0d6ee', '#ffe3c4', '#5a5296'], uCs: ['#ffbfe2', '#a797c8', '#ff8cba', '#1f1b4a'],
-  uFogC: ['#ffdcef', '#c6b6dc', '#ffaecb', '#0d0a2a'], uSeaA: ['#45e3d6', '#8088bc', '#ff98ac', '#141c4c'], uSeaB: ['#2f93f2', '#5c5ea0', '#7a4cc4', '#05061e'] }, LOOKN = { uFog: [.0016, .0048, .0021, .0026], uCov: [.5, .16, .46, .52], uSunI: [1, 0, 1.25, .5], uWet: [0, 1, .2, .25] };
+  uFogC: ['#ffdcef', '#c6b6dc', '#ffaecb', '#0d0a2a'], uSeaA: ['#2fd8d0', '#6f7ec0', '#4fc8d8', '#141c4c'], uSeaB: ['#2b7ff0', '#5058a0', '#6a5ad6', '#05061e'] }, LOOKN = { uFog: [.0016, .0048, .0021, .0026], uCov: [.5, .16, .46, .52], uSunI: [1, 0, 1.25, .5], uWet: [0, 1, .2, .25] };
 for (const k in LOOK) LOOK[k] = LOOK[k].map(col);
 const SUND = [new V(.42, .78, .46).normalize(), new V(.42, .78, .46).normalize(), new V(-.82, .17, .5).normalize(), new V(.85, .26, .45).normalize()]; // day, rain, golden hour, and the moon
 const WX = { w: [1, 0, 0, 0], t: [1, 0, 0], rain: 0, sink: 0 }; // four looks: day, rain, golden hour, night. sink: how far the golden sun has gone down

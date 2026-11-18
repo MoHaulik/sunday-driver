@@ -26,6 +26,12 @@ const CLOUDS = (() => { const P2 = [], g = new THREE.Group(); g.position.set(60,
     c+=mix(uHor,uSunC,.5)*pow(1.-max(dot(n,v),0.),3.)*.35*smoothstep(-.3,.3,d);gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog*.45)),1.);}`, THREE.FrontSide); // cel-shaded with a silver lining
   mk(`uniform vec3 uFogC,uCs;uniform float uFog;varying vec3 vN,vW;varying float vD,vH;void main(){gl_FragColor=vec4(mix(uFogC,mix(uCs,vec3(.11,.07,.2),.75),exp(-vD*uFog*.45)),1.);}`, THREE.BackSide, true); // the ink
   return g; })();
+// ── the horizon inland: a range of soft pastel mountains in two layers, inked, sinking into the haze. The country needs an edge
+{ const b = new MB(), hb = new MB(); let sd = 11; const r = (a, c) => { sd = sd * 16807 % 2147483647; return a + sd / 2147483647 * (c - a); }, PAL = [['#c3b2f4', '#b4a3ee'], ['#9fdcc8', '#b8e6a0', '#ffc0dc']];
+  for (const [layer, R0] of [[0, 980], [1, 760]]) for (let a = 1.4; a < 1.4 + 3.6; a += r(.13, .22)) { const x = 60 + Math.cos(a + Math.PI * .5) * R0 * r(.95, 1.05), z = 120 - Math.sin(a + Math.PI * .5) * R0 * r(.95, 1.05); if (z > -40) continue; /* inland only: never between you and the sea */
+    const W2 = r(110, 210) * (layer ? .8 : 1.2), H2 = r(60, 150) * (layer ? .7 : 1.25), m = new THREE.Matrix4().compose(new V(x, -6, z), new Qn().setFromEuler(new THREE.Euler(0, r(0, 6), 0)), new V(W2, H2, W2 * r(.7, 1.1))), g = new THREE.SphereGeometry(1, 22, 10, 0, 6.283, 0, Math.PI / 2);
+    b.add(g, m, col(PAL[layer][(r(0, 1) * PAL[layer].length) | 0])); hb.add(g.clone(), m, WHITE); } // back range lavender, the nearer one mint, meadow and a pink one
+  wmesh(b.geo()).frustumCulled = false; const ink = new THREE.Mesh(hb.geo(), inkW(2.6)); ink.renderOrder = RO.world; ink.frustumCulled = false; world.add(ink); }
 // ── Townsville across the bay. Not random boxes: seven kinds of building (deco setbacks, a Y2K capsule with a ring, glass slabs, a domed hall, a water-tower walk-up,
 // a billboard block and the NXT needle), each with a lit face, a shadow side, a highlight edge and a fat ink line. Two rows for depth, downtown clusters where it gets tall,
 // a hazy far city behind for parallax. At golden hour the windows come on.

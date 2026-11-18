@@ -64,12 +64,27 @@ vC*=instanceColor;
 #endif
 vN=mat3(modelMatrix)*n;vUv=uv;vW=(modelMatrix*p).xyz;vec4 mv=modelViewMatrix*p;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
 const WFS = `${LIT}uniform sampler2D map;uniform vec3 uSun,uSunC,uShC,uFogC,uHor;uniform float uFog,uNight;varying vec3 vC,vN,vW;varying vec2 vUv;varying float vD;
-void main(){vec3 a=vC,tx=vec3(0.);if(vUv.x>=0.){tx=texture2D(map,vUv).rgb;a*=tx;}float wg=step(.4,tx.b-tx.r)*step(.45,fract(sin(dot(floor(vUv*40.),vec2(12.9898,78.233)))*43758.5453))*uNight; // at night, about half the windows are lit (and the blue neon on the signs)
+void main(){vec3 a=vC,tx=vec3(0.);if(vUv.x>=0.){tx=texture2D(map,vUv).rgb;a*=tx;}
+#ifdef LAND
+{vec2 p=vW.xz;float grn=smoothstep(.04,.18,a.g-a.r)*smoothstep(.04,.18,a.g-a.b),fd=(1.-smoothstep(20.,70.,vD))*grn;
+ vec2 cl=floor(p/42.);float hs=fract(sin(dot(cl,vec2(41.3,17.7)))*4375.5),an=hs*3.1416;float st=step(.5,fract(dot(p,vec2(cos(an),sin(an)))/3.4));a*=1.+(st-.5)*.09*step(.3,hs)*grn*(1.-smoothstep(120.,320.,vD)); // mown stripes, field by field
+ vec2 g=p*1.5,id=floor(g),f=fract(g)-.5;float r=fract(sin(dot(id,vec2(12.9898,78.233)))*43758.5453);vec2 o=f-vec2(r-.5,fract(r*7.13)-.5)*.5;
+ a*=1.-smoothstep(.07,.0,abs(o.x+o.y*.35))*smoothstep(.24,.05,abs(o.y))*.3*fd; // painted grass ticks
+ if(r>.962)a=mix(a,r>.988?vec3(1.,.42,.74):r>.976?vec3(1.):vec3(1.,.84,.22),smoothstep(.12,.06,length(o))*fd);} // and flowers
+#endif
+float wg=step(.4,tx.b-tx.r)*step(.45,fract(sin(dot(floor(vUv*40.),vec2(12.9898,78.233)))*43758.5453))*uNight; // at night, about half the windows are lit (and the blue neon on the signs)
 vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=dot(n,uSun),l=smoothstep(.0,.03,d)*.72+smoothstep(.42,.48,d)*.28;vec3 vv=normalize(cameraPosition-vW);float rim=pow(1.-abs(dot(n,vv)),3.); // form: a third band where light grazes, sky light from above, a rim that moves with your head
 
 gl_FragColor=vec4(mix(uFogC,a*(mix(uShC,uSunC,l)*(.9+.1*n.y)+uHor*rim*.2*(1.-uNight*.6)+(uNight>.001?nightLight(vW,n)*uNight:vec3(0.)))+vec3(1.,.78,.42)*wg,exp(-vD*uFog)),1.);}`;
 const wmat = (o = {}) => new THREE.ShaderMaterial({ uniforms: { ...UW, map: u(ATL.tex) }, vertexShader: WVS, fragmentShader: WFS, vertexColors: true, ...STEN, ...o });
 const WM = wmat(), WM2 = wmat({ side: THREE.DoubleSide });
+const inkW = w => new THREE.ShaderMaterial({ uniforms: { ...UW, uW: u(w) }, side: THREE.BackSide, ...STEN, // the world's ink line: an inverted hull, fading into the haze like everything else
+  vertexShader: `uniform float uW;varying float vD;void main(){vec4 p=vec4(position+normal*uW,1.);
+#ifdef USE_INSTANCING
+p=instanceMatrix*p;
+#endif
+vec4 mv=modelViewMatrix*p;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`,
+  fragmentShader: `uniform vec3 uFogC;uniform float uFog;varying float vD;void main(){gl_FragColor=vec4(mix(uFogC,vec3(.11,.07,.2),exp(-vD*uFog)),1.);}` });
 const wmesh = (g, m = WM, p = world) => { const o = new THREE.Mesh(g, m); o.renderOrder = RO.world; p.add(o); return o; };
 
 // ── the town, built along the samples
@@ -93,7 +108,8 @@ const BB = [[atTP(8), 1], [atTP(20), -1], [atTP(5), -1]].map(([k, side]) => { co
 { const tree = (x, z, s) => BB.some(b => Math.hypot(x - b[2], z - b[3]) < 9 + s * 2) || TREES.push([x, hill2(x, z) - .25, z, s, rnd(0, 6.3), rnd(.86, 1.06), rnd(.92, 1.08), rnd(.8, 1)]);
   for (const side of [-1, 1]) for (let i = 0; i < N; i += 5) { if (ZONE[i] && Math.abs(((i - 4) % 16 + 16) % 16 - 8) > 4) continue; if (ZONE[i] === 1 || (ZONE[i] === 2 && side < 0) || rnd() < .35) continue; const o = (W + rnd(5.2, 7.5)) * side; tree(SX[i] - TZ[i] * o, SZ[i] + TX[i] * o, rnd(.9, 1.5)); }
   for (let k = 0; k < 1500 && TREES.length < 430; k++) { const x = rnd(-400, 520), z = rnd(-240, 300), n = nearest(x, z); if (n.d < W + 9 || n.d > 190 || (ZONE[n.i] === 1 && n.d < 30) || hill(x, z) < 1.8 || (z > 268 && ZONE[n.i] === 2)) continue; tree(x, z, rnd(.9, 1.9)); } }
-function hill2(x, z) { const n = nearest(x, z), flat = ZONE[n.i] === 1 ? 26 : W + 13; return lerp(SY[n.i] - .3, hill(x, z), s01((n.d - flat) / 45)); } // the land as built: level beside the road, the hill's own shape further out
+function hill2(x, z) { const n = nearest(x, z), i = n.i, flat = ZONE[i] === 1 ? 26 : W + 13; if (ZONE[i] === 2 && (z - SZ[i]) * TX[i] - (x - SX[i]) * TZ[i] < 0) { const k = s01((n.d - W - 2) / 26); return lerp(SY[i] - .3, Math.min(hill(x, z), -2.5), Math.sqrt(k)); } // the coast: behind the sea wall the land falls away to a beach and the water
+  return lerp(SY[i] - .3, hill(x, z), s01((n.d - flat) / 45)); } // the land as built: level beside the road, the hill's own shape further out
 // poles and their wires, the guard rails, the sea wall, the chevrons
 for (let i = 4; i < N; i += 16) { const z = ZONE[i]; if (!z) continue; const side = z === 2 ? 1 : -1, o = (W + 1.55) * side, x = SX[i] - TZ[i] * o, zz = SZ[i] + TX[i] * o, ry = Math.atan2(TX[i], TZ[i]) + Math.PI / 2, m = M4(x, SY[i] + .1, zz, ry), pc = col('#3a2a5c');
   stat.box(m, .24, 8.6, .24, pc).box(M4(0, 7.5, 0).premultiply(m), .16, .16, 2.3, pc).box(M4(0, 6.8, 0).premultiply(m), .14, .14, 1.5, pc); if (i % 32 < 16) stat.add(new THREE.CylinderGeometry(.3, .3, .8, 8), M4(.35, 6.1, 0).premultiply(m), col('#b9bcc4'));
@@ -121,20 +137,25 @@ wmesh(stat.geo(), WM2).frustumCulled = false;
 { const pts = [], Y = [7.58, 7.58, 6.88]; for (let k = 0; k < POLES.length; k++) { const a = POLES[k], b = POLES[(k + 1) % POLES.length]; if (md(a.i, b.i) > 17) continue; // three wires, pole to pole, hanging a little
     [-1.05, 1.05, .65].forEach((z, w) => { const A = new V(0, Y[w], z).applyMatrix4(a.m), B = new V(0, Y[w], z).applyMatrix4(b.m); for (let s = 0; s < 6; s++) for (const t of [s / 6, (s + 1) / 6]) pts.push(lerp(A.x, B.x, t), lerp(A.y, B.y, t) - Math.sin(t * Math.PI) * .55, lerp(A.z, B.z, t)); }); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#1d1233', ...STEN })); l.renderOrder = RO.world; l.frustumCulled = false; world.add(l); }
-{ const b = new MB(), g1 = col('#7be04a'), g2 = col('#a8f25c'), g3 = col('#3fc98a'); // one tree, drawn four hundred times
-  b.add(new THREE.CylinderGeometry(.16, .26, 2.8, 5, 1, true), M4(0, 1.4, 0), col('#6a3fa0')).add(new THREE.IcosahedronGeometry(1.9, 1), M4(0, 3.9, 0), g1).add(new THREE.IcosahedronGeometry(1.3, 0), M4(1.2, 3.1, .4), g3).add(new THREE.IcosahedronGeometry(1.35, 0), M4(-.9, 3.3, -.6), g2).add(new THREE.IcosahedronGeometry(1.1, 0), M4(.2, 5.1, .3), g2);
-  const im = new THREE.InstancedMesh(b.geo(), WM, TREES.length); TREEM = im; TREES.forEach((t, k) => { im.setMatrixAt(k, M4(t[0], t[1], t[2], t[4], t[3], t[3] * t[5])); im.setColorAt(k, _c.setRGB(t[7], t[6], t[7] * .9)); if (nearest(t[0], t[2]).d < W + 11) SHADE.push([t[0] + sdir.x * 3.5, t[2] + sdir.z * 3.5, 2.6 * t[3] + 2.2]); });
-  im.renderOrder = RO.world; im.frustumCulled = false; world.add(im); }
+{ // one tree, drawn four hundred times: a cloud of round puffs on a purple trunk, cel-shaded, inked, in greens, mint and blossom pink
+  const PUFF = [[0, 4.05, 0, 1.6, 1], [1.2, 3.45, .35, 1.18, .9], [-1.05, 3.55, -.4, 1.22, .93], [.3, 3.3, -1.15, 1.05, .88], [-.4, 3.25, 1.1, 1.02, .87], [.15, 5.2, .1, 1, 1.05]];
+  const cb = new MB(), hb = new MB(), tb = new MB(); PUFF.forEach(([x, y, z, r, k]) => { cb.add(new THREE.SphereGeometry(r, 14, 10), M4(x, y, z), _c.setRGB(k, k, k).clone()); hb.add(new THREE.SphereGeometry(r, 14, 10), M4(x, y, z), WHITE); });
+  tb.add(new THREE.CylinderGeometry(.17, .3, 3.1, 8), M4(0, 1.55, 0), col('#7a4a9e')).add(new THREE.CylinderGeometry(.07, .12, 1.3, 6), new THREE.Matrix4().compose(new V(.35, 2.6, 0), new Qn().setFromEuler(new THREE.Euler(0, 0, -.7)), new V(1, 1, 1)), col('#7a4a9e'));
+  hb.add(new THREE.CylinderGeometry(.17, .3, 3.1, 8), M4(0, 1.55, 0), WHITE);
+  const TPAL = ['#7be04a', '#5fd36a', '#9fe85a', '#7be04a', '#4fd8a6', '#8fe04f', '#6ad86e', '#a6ec5c', '#ff9fd0'].map(col);
+  const im = new THREE.InstancedMesh(cb.geo(), WM, TREES.length); TREEM = im; TREES.forEach((t, k) => { im.setMatrixAt(k, M4(t[0], t[1], t[2], t[4], t[3], t[3] * t[5])); im.setColorAt(k, _c.copy(TPAL[(Math.abs(Math.sin(k * 91.7)) * TPAL.length) | 0]).multiplyScalar(.9 + t[6] * .15)); if (nearest(t[0], t[2]).d < W + 11) SHADE.push([t[0] + sdir.x * 3.5, t[2] + sdir.z * 3.5, 2.6 * t[3] + 2.2]); });
+  im.renderOrder = RO.world; im.frustumCulled = false; world.add(im);
+  for (const [geo, mat] of [[tb.geo(), WM], [hb.geo(), inkW(.13)]]) { const m = new THREE.InstancedMesh(geo, mat, TREES.length); m.instanceMatrix = im.instanceMatrix; m.renderOrder = RO.world; m.frustumCulled = false; world.add(m); } } // trunk and ink share the canopy's matrices, so a shaken tree shakes all of it
 const MILLS = [[-262, -78], [-300, -8], [-236, -150]].map(([x, z], k) => { const y = hill(x, z), b = new MB(), g = new THREE.Group(); stat2add(x, y, z); for (let a = 0; a < 3; a++) b.add(new THREE.BoxGeometry(.7, 13, .18), new THREE.Matrix4().makeRotationZ(a * 2.094).multiply(new THREE.Matrix4().makeTranslation(0, 6.8, 0)), WHITE); g.add(wmesh(b.geo(), WM, g)); g.position.set(x, y + 27, z + 1.4); world.add(g); return g; });
 function stat2add(x, y, z) { const b = new MB(); b.add(new THREE.CylinderGeometry(.5, 1.1, 27, 8), M4(x, y + 13.5, z), WHITE).add(new THREE.BoxGeometry(1.2, 1.2, 3), M4(x, y + 27, z), WHITE); wmesh(b.geo()); }
 
 // ── the land: a grid that is flat beside the road and hill further out
 { const x0 = -460, z0 = -300, cs = 8, nx = 130, nz = 98, pos = [], cl = [], uv = [], idx = [], ga = col('#8ee85a'), gb = col('#6fdc6a'), gc = col('#c8f570'), sand = col('#ffe9a8'), plaza = col('#f6d8ec'), c = new C();
-  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = x0 + i * cs, z = z0 + j * cs, n = nearest(x, z), town = ZONE[n.i] === 1, flat = town ? 26 : W + 13, h0 = hill(x, z), h = lerp(SY[n.i] - .3, h0, s01((n.d - flat) / 45)), r = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453, f = r - Math.floor(r);
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = x0 + i * cs, z = z0 + j * cs, n = nearest(x, z), town = ZONE[n.i] === 1, h = hill2(x, z), r = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453, f = r - Math.floor(r);
     c.copy(ga).lerp(gb, f).lerp(gc, clamp((h - 9) / 9, 0, 1)); if (h < 2.2) c.lerp(sand, s01((2.2 - h) / .9)); if (town) c.lerp(plaza, 1 - s01((n.d - 20) / 12)); pos.push(x, h, z); cl.push(c.r, c.g, c.b); uv.push(-1, -1); }
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, d = a + nx + 1, e = d + 1; idx.push(a, d, b, b, d, e); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  wmesh(g, wmat({ polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 6 })).frustumCulled = false; }
+  wmesh(g, wmat({ polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 6, defines: { LAND: 1 } })).frustumCulled = false; }
 
 // ── the road: one ribbon, seventeen vertices across. The shader paints asphalt, lines, kerbs, paving, verge, leaf shadow and the puddles
 const PUD = [...Array(34)].map(() => ({ s: rnd(70, TL - 20), lat: rnd(-W + 1.6, W - 1.6), a: rnd(3, 7.5), b: rnd(1.3, 2.7) }));
@@ -165,8 +186,11 @@ const PUD = [...Array(34)].map(() => ({ s: rnd(70, TL - 20), lat: rnd(-W + 1.6, 
 wmesh(new THREE.PlaneGeometry(4200, 4200).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: UW, ...STEN,
   vertexShader: `varying vec3 vP;varying float vD;void main(){vP=position;vec4 mv=modelViewMatrix*vec4(position,1.);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`,
   fragmentShader: `${NOISE}${SKY}uniform vec3 uEye,uSeaA,uSeaB;uniform float uFog;varying vec3 vP;varying float vD;
-  void main(){vec3 v=normalize(vP-uEye),r=reflect(v,vec3(0.,1.,0.));r.xz+=(vec2(vn(vP.xz*.09+uTime*.25),vn(vP.xz*.09-uTime*.2+4.))-.5)*.07;float fr=.2+.8*pow(1.-max(-v.y,0.),4.);
-    vec3 c=mix(mix(uSeaA,uSeaB,smoothstep(30.,420.,vD)),sky(normalize(r),0),fr*.7);float sp=vn(vP.xz*vec2(.8,.22)+vec2(uTime*.5,0.))*vn(vP.xz*.06-uTime*.04+3.);c+=uSunC*smoothstep(.5,.56,sp)*.45*uSunI;
+  void main(){vec3 v=normalize(vP-uEye),r=reflect(v,vec3(0.,1.,0.));r.xz+=(vec2(vn(vP.xz*.09+uTime*.25),vn(vP.xz*.09-uTime*.2+4.))-.5)*.07;float fr=.12+.88*pow(1.-max(-v.y,0.),5.);
+    vec3 c=mix(uSeaA,uSeaB,smoothstep(25.,520.,vD));c=mix(c,sky(normalize(r),0),fr*.3); // a cartoon sea: its own saturated colour first, only a little sky in it
+    vec2 q=vP.xz*.045+vec2(uTime*.035,uTime*.02);float n1=vn(q*2.)+.5*vn(q*4.3+7.1),f=fract(n1*2.6),w=fwidth(n1*2.6);
+    float ln=(1.-smoothstep(0.,w*1.6,min(f,1.-f)))*step(.42,vn(q*7.+uTime*.05))*(1.-smoothstep(50.,260.,vD)); // drawn foam squiggles: contour lines of a slow noise, broken into dashes
+    c=mix(c,mix(c,vec3(1.),.75),ln*(1.-uNight*.6));float sp=vn(vP.xz*vec2(.8,.22)+vec2(uTime*.5,0.))*vn(vP.xz*.06-uTime*.04+3.);c+=uSunC*smoothstep(.5,.56,sp)*.45*uSunI;
     gl_FragColor=vec4(mix(uFogC,c,exp(-vD*uFog*.8)),1.);}` })).frustumCulled = false;
 const skyDome = new THREE.Mesh(new THREE.SphereGeometry(1200, 32, 16), new THREE.ShaderMaterial({ uniforms: UW, side: THREE.BackSide, depthWrite: false, ...STEN,
   vertexShader: `varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`, fragmentShader: `${NOISE}${SKY}varying vec3 vP;void main(){gl_FragColor=vec4(sky(normalize(vP),1),1.);}` }));
