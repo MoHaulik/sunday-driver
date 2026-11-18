@@ -131,7 +131,7 @@ const SKYLIFE = (() => { const outl = (geo, g, s = 1.04) => { const o = new THRE
   const FLOCK = [atTP(1), atTP(9), atTP(15)].map((i, f) => ({ c: new V(SX[i] - TZ[i] * 22, SY[i] + 9, SZ[i] + TX[i] * 22), scat: 0, dir: new V(), b: [...Array(10)].map((_, j) => ({ a: j / 10 * 6.283, r: 4 + rnd() * 5, h: rnd() * 3, ph: rnd() * 7, sp: .5 + rnd() * .4 })) }));
   return { BAL, blimp, birds, bp, FLOCK }; })();
 function skylife(dt) { const S = SKYLIFE;
-  S.BAL.forEach(b => { b.g.position.set(b.x + Math.sin(T * .03 + b.k) * 30, b.y + Math.sin(T * .4 + b.k * 2) * 2.5, b.z + Math.cos(T * .025 + b.k) * 25); b.g.rotation.y = T * .05 + b.k; });
+  balloons(dt); people(dt);
   const ba = T * .022; S.blimp.position.set(60 + Math.cos(ba) * 280, 85 + Math.sin(T * .3) * 2, 120 + Math.sin(ba) * 240); S.blimp.rotation.set(0, -ba - Math.PI / 2, Math.sin(T * .5) * .03); // nose along its circle
   let n = 0; for (const f of S.FLOCK) { const d = Math.hypot(f.c.x - P.x, f.c.z - P.z); if (f.scat <= 0 && (d < 28 && P.vf > 8 || d < 60 && IN.honk)) { f.scat = 9; f.dir.set(f.c.x - P.x, 0, f.c.z - P.z).normalize(); sfx('whoosh', .3); } if (f.scat > 0) f.scat -= dt; const k = f.scat > 0 ? s01((9 - f.scat) / 1.5) * (f.scat > 2 ? 1 : f.scat / 2) : 0;
     for (const b of f.b) { b.a += dt * b.sp * (1 + k * 2); const fl = Math.sin(T * (11 + k * 8) + b.ph) * .35, x = f.c.x + Math.cos(b.a) * b.r + f.dir.x * k * 60, y = f.c.y + b.h + Math.sin(b.a * 2) + k * 30, z = f.c.z + Math.sin(b.a) * b.r + f.dir.z * k * 60, tx = -Math.sin(b.a) * .5, tz = Math.cos(b.a) * .5;
@@ -215,3 +215,43 @@ function ghost(dt) { const racing = G.phase === 'race';
   const s = racing && GH.last.length ? ghostAt(P.lapT) : null; GH.g.visible = GH.rb.m.visible = !!s; if (!s) return;
   GH.g.position.set(s[0], s[1], s[2]); GH.g.rotation.set(0, -s[3], 0); GH.rb.push(GH.g.position, .4); GH.rb.build(YA, .7);
   const lp = ((P.prog % TL) + TL) % TL, qn = Math.floor(lp / TL * 4); if (qn > GH.q && qn < 4) { GH.q = qn; const g = GH.last.find(r => r[5] >= lp); if (g) { const d = P.lapT - g[0]; say(`GHOST ${d < 0 ? '−' : '+'}${Math.abs(d).toFixed(1)}s`, 1.4); sfx(d < 0 ? 'coin' : 'tick', .5); } } } // splits: green coin if you are ahead
+
+
+// ═══════════════════════════ A LIVING WORLD: balloons that really fly, people on the pavements, bunting over the streets ═══════════════════════════
+// ── balloons ride the wind and work their burners: a roar of flame and a climb, then a long slow sink. Drift out of the map and they come back in upwind
+const WIND = new V(.82, 0, .57).normalize(), FLAME = artTex(64, 64, c => { const g = c.createRadialGradient(32, 40, 2, 32, 34, 30); g.addColorStop(0, '#fff8d0'); g.addColorStop(.35, '#ffb43c'); g.addColorStop(1, 'rgba(255,80,20,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); });
+SKYLIFE.BAL.forEach((b, k) => { b.p = new V(b.x, b.y, b.z); b.sp = 2.5 + k * .9; b.vy = 0; b.burn = 0; b.yMin = 45 + k * 12; b.yMax = 85 + k * 15;
+  b.fl = new THREE.Sprite(new THREE.SpriteMaterial({ map: FLAME, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, ...STEN })); b.fl.position.set(0, 3.1, 0); b.fl.scale.set(1.6, 2.6, 1); b.fl.renderOrder = RO.fx; b.g.add(b.fl); });
+function balloons(dt) { for (const b of SKYLIFE.BAL) { b.p.addScaledVector(WIND, b.sp * dt); b.p.x += Math.sin(T * .07 + b.k * 3) * dt * .8; // the wind, with a little wander
+    if (b.burn > 0) { b.burn -= dt; b.vy = Math.min(b.vy + 1.1 * dt, 1.6); } else { b.vy = Math.max(b.vy - .22 * dt, -.7); if (b.p.y < b.yMin || (b.vy < -.5 && Math.random() < dt * .1)) b.burn = 2.5 + Math.random() * 3; }
+    if (b.p.y > b.yMax) b.vy = Math.min(b.vy, 0); b.p.y += b.vy * dt;
+    if (Math.hypot(b.p.x - 60, b.p.z - 120) > 620) { const side = (Math.random() - .5) * 700; b.p.set(60 - WIND.x * 560 - WIND.z * side, b.yMin + 10, 120 - WIND.z * 560 + WIND.x * side); } // gone downwind: a new one rises upwind
+    b.g.position.copy(b.p); b.g.rotation.set(Math.sin(T * .6 + b.k) * .03, b.g.rotation.y + dt * .04, Math.sin(T * .5 + b.k * 2) * .04);
+    const on = b.burn > 0 ? .7 + .3 * Math.sin(T * 31 + b.k) * Math.sin(T * 17) : 0; b.fl.material.opacity = on; b.fl.visible = on > .01; b.fl.scale.set(1.6, 2.2 + on * 1.4, 1); } }
+
+// ── people: about ninety beans on the town pavements. They stroll, they stand and chat, and when you come through flat out they hop and turn to watch you go
+const PEDS = []; for (let i = 0; i < N && PEDS.length < 90; i += 2) { if (ZONE[i] !== 1 || Math.random() < .5) continue; const side = Math.random() < .5 ? -1 : 1;
+  PEDS.push({ s: i + Math.random() * 2, side, lat: (W + 1.1 + Math.random() * 1.6) * side, v: (Math.random() < .3 ? 0 : (.8 + Math.random() * .7) * (Math.random() < .5 ? -1 : 1)) / DS, ph: Math.random() * 7, hop: 0, cd: 0, ry: 0, sc: .9 + Math.random() * .25 }); }
+const PED = (() => { const body = new MB(), head = new MB(), hull = new MB(), skin = ['#ffdcc2', '#f2b48c', '#c98a5e', '#8d5a3b', '#ffe6d6'], shirt = ['#ff4fa3', '#4fc6ff', '#86e05a', '#ffd23f', '#b48cff', '#ff8a3c', '#ffffff', '#4fd1b0'];
+  body.add(new THREE.CapsuleGeometry(.23, .5, 6, 12), M4(0, .48, 0), WHITE).add(new THREE.CapsuleGeometry(.07, .3, 4, 8), new THREE.Matrix4().compose(new V(.27, .55, 0), new Qn().setFromEuler(new THREE.Euler(0, 0, .35)), new V(1, 1, 1)), WHITE).add(new THREE.CapsuleGeometry(.07, .3, 4, 8), new THREE.Matrix4().compose(new V(-.27, .55, 0), new Qn().setFromEuler(new THREE.Euler(0, 0, -.35)), new V(1, 1, 1)), WHITE);
+  head.add(new THREE.SphereGeometry(.21, 14, 10), M4(0, 1.12, 0), WHITE); for (const s of [-1, 1]) head.add(new THREE.SphereGeometry(.045, 8, 6).scale(1, 1.3, .6), M4(s * .075, 1.15, .19), col('#1d1233')); // big Y2K eyes
+  hull.add(new THREE.CapsuleGeometry(.23, .5, 6, 12), M4(0, .48, 0), WHITE).add(new THREE.SphereGeometry(.21, 14, 10), M4(0, 1.12, 0), WHITE);
+  const n = PEDS.length, B = new THREE.InstancedMesh(body.geo(), WM, n), H = new THREE.InstancedMesh(head.geo(), WM, n), K = new THREE.InstancedMesh(hull.geo(), inkW(.035), n); H.instanceMatrix = K.instanceMatrix = B.instanceMatrix;
+  PEDS.forEach((p, k) => { B.setColorAt(k, col(shirt[k % shirt.length])); H.setColorAt(k, col(skin[(k * 7) % skin.length])); }); [B, H, K].forEach(m => { m.renderOrder = RO.world; m.frustumCulled = false; world.add(m); }); return B; })();
+function people(dt) { if (!PEDS.length) return; const M = PED;
+  PEDS.forEach((p, k) => { if (p.v) { p.s += p.v * dt; const i0 = ix(Math.floor(p.s)); if (ZONE[i0] !== 1) { p.v = -p.v; p.s += p.v * dt * 2; } } p.s = ((p.s % N) + N) % N;
+    const i = Math.floor(p.s), j = ix(i + 1), f = p.s - i, x = lerp(SX[i], SX[j], f) - lerp(TZ[i], TZ[j], f) * p.lat, z = lerp(SZ[i], SZ[j], f) + lerp(TX[i], TX[j], f) * p.lat, y = lerp(SY[i], SY[j], f) + .14, d = Math.hypot(x - P.x, z - P.z);
+    if (d < 14 && P.vf > 14 && T > p.cd) { p.hop = .55; p.cd = T + 3; } p.hop = Math.max(0, p.hop - dt); // you blasted past: a hop!
+    const walkDir = Math.atan2(TX[i] * Math.sign(p.v || 1), TZ[i] * Math.sign(p.v || 1)), look = d < 30 ? Math.atan2(P.x - x, P.z - z) : p.v ? walkDir : p.ry + Math.sin(T * .3 + p.ph) * .01;
+    p.ry += wrapPi(look - p.ry) * damp(dt, .15); const bob = p.v ? Math.abs(Math.sin(T * 7 + p.ph)) * .06 : 0, hop = Math.sin(p.hop / .55 * Math.PI) * .45, sq = 1 + (p.v ? Math.sin(T * 14 + p.ph) * .03 : Math.sin(T * 2 + p.ph) * .02);
+    M.setMatrixAt(k, _m.compose(_v.set(x, y + bob + hop, z), _q.setFromEuler(EU.set(0, p.ry, Math.sin(T * 7 + p.ph) * (p.v ? .06 : 0))), _v2.set(p.sc / sq, p.sc * sq, p.sc / sq))); }); M.instanceMatrix.needsUpdate = true; }
+
+// ── bunting over the town streets: strings of pennants from wall to wall, flapping
+{ const pos = [], cl = [], ph = [], PC = ['#ff4fa3', '#4fc6ff', '#ffd23f', '#86e05a', '#b48cff', '#ffffff'].map(col);
+  for (let i = 6; i < N; i += 11) { if (ZONE[i] !== 1 || ZONE[ix(i + 3)] !== 1) continue; const L = W + 3.2, a = new V(SX[i] - TZ[i] * L, SY[i] + 5.4, SZ[i] + TX[i] * L), b = new V(SX[i] + TZ[i] * L, SY[i] + 5.4, SZ[i] - TX[i] * L), n2 = 22;
+    for (let k = 0; k < n2; k++) { const t0 = k / n2, t1 = (k + .8) / n2, sag = t => Math.sin(t * Math.PI) * 1.1, p0 = a.clone().lerp(b, t0), p1 = a.clone().lerp(b, t1); p0.y -= sag(t0); p1.y -= sag(t1); const tip = p0.clone().lerp(p1, .5); tip.y -= .55; const c = PC[(k + i) % PC.length];
+      pos.push(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, tip.x, tip.y, tip.z); for (let q = 0; q < 3; q++) { cl.push(c.r, c.g, c.b); ph.push(q === 2 ? 1 : 0, k * .7 + i); } } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cl, 3)); g.setAttribute('aW', new THREE.Float32BufferAttribute(ph, 2));
+  const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: UW, vertexColors: true, side: THREE.DoubleSide, ...STEN,
+    vertexShader: `attribute vec2 aW;uniform float uTime;varying vec3 vC;varying float vD;void main(){vC=color;vec3 p=position;p.x+=aW.x*sin(uTime*5.+aW.y)*.18;p.z+=aW.x*cos(uTime*4.3+aW.y)*.18;vec4 mv=modelViewMatrix*vec4(p,1.);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader: `uniform vec3 uFogC,uSunC;uniform float uFog;varying vec3 vC;varying float vD;void main(){gl_FragColor=vec4(mix(uFogC,vC*mix(vec3(1.),uSunC,.4),exp(-vD*uFog)),1.);}` })); m.renderOrder = RO.world; m.frustumCulled = false; world.add(m); }

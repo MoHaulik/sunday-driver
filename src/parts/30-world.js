@@ -89,9 +89,13 @@ const wmesh = (g, m = WM, p = world) => { const o = new THREE.Mesh(g, m); o.rend
 
 // ── the town, built along the samples
 let TREEM; // the trees, so a hit can shake them
+const TINK = new MB(); // the town's ink hull
 const stat = new MB(), SHADE = [], TREES = [], POLES = [], sdir = new V(-SUND[0].x, 0, -SUND[0].z).normalize(), ROOFS = ['#ff5fa8', '#35b8ff', '#8a5cff', '#2fd6a0', '#ff8a3c', '#3a2a5c'];
 function building(x, y, z, ry, w, d, fl) { const t = rpick(fl === 1 ? T1 : fl === 2 ? T2 : T3), h = fl * 3.25 + .5, m = M4(x, y, z, ry), wall = TILE[t].wall, rc = col(rpick(ROOFS)), P = (a, b, c) => new V(a, b, c).applyMatrix4(m);
   stat.box(M4(x, y - 4, z, ry), w, 4, d, wall); stat.box(m, w, h, d, wall, { front: tileUV(t), suv: tileUV(t, .02, 0, .3, 1), top: col('#b9b4ad') });
+  { const dk = wall.clone().multiplyScalar(.82), lt = wall.clone().lerp(WHITE, .35); for (let k = 1; k < fl; k++) stat.box(M4(0, k * 3.25 + .05, d / 2 + .09).premultiply(m), w + .1, .16, .2, lt); // depth: a ledge at every floor, a cornice, a plinth and corner pilasters, so the fronts hold up in 3D
+    stat.box(M4(0, h - .3, d / 2 + .14).premultiply(m), w + .34, .3, .3, lt); stat.box(M4(0, -.05, d / 2 + .06).premultiply(m), w + .06, .5, .14, dk); for (const s2 of [-1, 1]) stat.box(M4(s2 * (w / 2 - .1), 0, d / 2 + .07).premultiply(m), .24, h - .3, .16, dk);
+    TINK.box(M4(0, -.08, 0).premultiply(m), w + .2, h + .16, d + .2, WHITE); } // and the ink line round the whole block
   if (rnd() < .65) { const rh = d * .26, ex = w / 2 + .35, ez = d / 2 + .45; stat.quad(P(-ex, h, ez), P(ex, h, ez), P(ex, h + rh, 0), P(-ex, h + rh, 0), rc).quad(P(ex, h, -ez), P(-ex, h, -ez), P(-ex, h + rh, 0), P(ex, h + rh, 0), rc); const x2 = w / 2, z2 = d / 2; stat.quad(P(-x2, h, -z2), P(-x2, h, z2), P(-x2, h + rh, 0), P(-x2, h + rh, 0), wall).quad(P(x2, h, z2), P(x2, h, -z2), P(x2, h + rh, 0), P(x2, h + rh, 0), wall); }
   else { stat.box(M4(0, h, 0).premultiply(m), w + .3, .35, d + .3, wall.clone().multiplyScalar(.9)); stat.box(M4(rnd(-w * .25, w * .25), h + .35, rnd(-1, 1)).premultiply(m), 1.6, rnd(.9, 1.6), 1.3, col('#aeb6c2')); }
   if (TILE[t].awn) stat.quad(P(-w * .46, 2.25, d / 2 + 1.05), P(w * .46, 2.25, d / 2 + 1.05), P(w * .46, 2.85, d / 2), P(-w * .46, 2.85, d / 2), TILE[t].awn); // the awning stands out from the wall
@@ -133,7 +137,7 @@ const LAMPS = [];
   stat.add(new THREE.CylinderGeometry(1.25, 1.25, 1.8, 10), M4(lx, 21.4, lz), col('#22303f')).add(new THREE.ConeGeometry(1.7, 1.6, 10), M4(lx, 23.1, lz), col('#e3372e'));
   for (const [x, z, s, h] of [[-90, 420, 1, '#ffffff'], [150, 470, 1.3, '#ffd23f'], [330, 400, .9, '#ffffff'], [-260, 520, 1.5, '#ff8fa3'], [470, 560, 1.4, '#ffffff']]) { const m = M4(x, 0, z, rnd(0, 6), s); stat.box(m, 1.9, .9, 6, col('#f6f3ea')); const P = (a, b, c) => new V(a, b, c).applyMatrix4(m); stat.quad(P(0, 1, 2.2), P(0, 1, -2), P(0, 8.5, -.6), P(0, 8.5, -.6), col(h)); }
   for (const [x, z, s] of [[-420, 900, 1], [260, 1050, 1.5], [820, 700, 1.2], [-900, 520, 1.3]]) stat.add(new THREE.ConeGeometry(150, 62, 7), M4(x, 20, z, x, s), col('#6fb07c')); }
-wmesh(stat.geo(), WM2).frustumCulled = false;
+wmesh(stat.geo(), WM2).frustumCulled = false; { const k = new THREE.Mesh(TINK.geo(), inkW(0)); k.renderOrder = RO.world; k.frustumCulled = false; world.add(k); }
 { const pts = [], Y = [7.58, 7.58, 6.88]; for (let k = 0; k < POLES.length; k++) { const a = POLES[k], b = POLES[(k + 1) % POLES.length]; if (md(a.i, b.i) > 17) continue; // three wires, pole to pole, hanging a little
     [-1.05, 1.05, .65].forEach((z, w) => { const A = new V(0, Y[w], z).applyMatrix4(a.m), B = new V(0, Y[w], z).applyMatrix4(b.m); for (let s = 0; s < 6; s++) for (const t of [s / 6, (s + 1) / 6]) pts.push(lerp(A.x, B.x, t), lerp(A.y, B.y, t) - Math.sin(t * Math.PI) * .55, lerp(A.z, B.z, t)); }); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#1d1233', ...STEN })); l.renderOrder = RO.world; l.frustumCulled = false; world.add(l); }
